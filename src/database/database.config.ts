@@ -1,8 +1,13 @@
 import { SequelizeModuleOptions } from '@nestjs/sequelize';
 
 export const dataBaseConfig: SequelizeModuleOptions = {
-    dialect: 'sqlite',
-    storage: '.db/data.sqlite3',
+    dialect: 'postgres',
+    database: 'secretsanta',
+    username: 'user',
+    password: 'pass',
+    host: 'postgres',
+    port: 5432,
+    ssl: false,
     autoLoadModels: true,
     synchronize: true,
 };

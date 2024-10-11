@@ -27,6 +27,7 @@
     "@nestjs/passport": "^10.0.2",
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/sequelize": "^10.0.0",
+    "@sequelize/postgres": "^7.0.0-alpha.43",
     "cookie-parser": "^1.4.6",
     "hbs": "^4.2.0",
     "passport": "^0.6.0",
@@ -34,8 +35,7 @@
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1",
     "sequelize": "^6.35.0",
-    "sequelize-typescript": "^2.1.5",
-    "sqlite3": "^5.1.6"
+    "sequelize-typescript": "^2.1.5"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",
