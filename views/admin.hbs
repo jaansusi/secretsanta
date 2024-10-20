@@ -3,53 +3,67 @@
 
 <head>
     <meta charset="utf-8" />
-    <title>App</title>
+    <title>Admin Panel - Generate Santas</title>
 
-    <link rel="stylesheet" href="/css/index.css">
-    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="/css/main.css">
     <link rel="stylesheet" href="/css/auth.css">
     <link rel="stylesheet" href="/css/admin.css">
 </head>
 
 <body>
-    <script>
-        function generateSantas() {
-            let a = confirm("OLED KINDEL?");
-            if (a)
-                location.href = '/admin/generate';
-        }
-    </script>
-    {{!-- <main role="main" class="centerer text-center"> --}}
+    <main role="main" class="container my-5">
         {{#if isAdmin}}
-        
-        <div class="adminContainer">
-            <div class="adminButtonContainer">
-                <button class="button" onclick="location.href = '/'">Home</button>
+        <div class="admin-container">
+            {{> adminheader}}
+            <div class="text-center mb-4">
+                <button class="btn btn-success btn-lg" onclick="generateSantas()">Generate Santas</button>
             </div>
-            <br />
-            <button onclick="generateSantas()">Generate Santas (DESTRUCTIVE ACTION!)</button>
-            <br />
-            <br />
-            {{#with validationResult}}
-            Names and santas match: {{namesAndSantasMatch}}
-            <br />
-            All people gift to a unique person: {{allPeopleGiftToAUniquePerson}}
-            <br />
-            All people gift to someone not in their family: {{allPeopleGiftToSomeoneNotInTheirFamily}}
-            <br />
-            User ids and their designated santas: {{usersIdsAndTheirDesignatedSantas}}
-            <br />
-            Names of gifters: &nbsp;{{names}}
-            <br />
-            Names of giftees: {{designatedSantas}}
-            {{/with}}
+            <div class="validation-container">
+                <h3 class="mb-3">Validation Results</h3>
+                <div class="validation-item alert alert-info">
+                    <strong>DB Hash:</strong> {{dbHash}}
+                </div>
+                {{#unless validationResult.noErrorsDuringValidation}}
+                <div class="validation-item alert alert-danger">
+                    <strong>Errors occurred during validation:</strong>
+                    <pre>{{error}}</pre>
+                </div>
+                {{else}}
+                <div
+                    class="validation-item alert {{#if validationResult.namesAndSantasMatch}}alert-success{{else}}alert-danger{{/if}}">
+                    <strong>Names and Santas Match:</strong>
+                    {{#if validationResult.namesAndSantasMatch}}Yes{{else}}No{{/if}}
+                </div>
+                <div
+                    class="validation-item alert {{#if validationResult.allPeopleGiftToAUniquePerson}}alert-success{{else}}alert-danger{{/if}}">
+                    <strong>All People Gift to a Unique Person:</strong>
+                    {{#if validationResult.allPeopleGiftToAUniquePerson}}Yes{{else}}No{{/if}}
+                </div>
+                <div
+                    class="validation-item alert {{#if validationResult.allPeopleGiftToSomeoneNotInTheirFamily}}alert-success{{else}}alert-danger{{/if}}">
+                    <strong>All People Gift to Someone Not in Their Family:</strong>
+                    {{#if validationResult.allPeopleGiftToSomeoneNotInTheirFamily}}Yes{{else}}No{{/if}}
+                </div>
+                {{/unless}}
+            </div>
         </div>
-
-        
+        {{else}}
+        <div class="alert alert-warning mt-5" role="alert">
+            You do not have admin privileges.
+        </div>
         {{/if}}
-    {{!-- </main> --}}
+    </main>
 
+    <!-- Custom JavaScript -->
+    <script src="/js/admin.js"></script>
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
 </body>
 
 </html>

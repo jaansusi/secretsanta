@@ -28,10 +28,9 @@ function submitCode() {
         },
         redirect: "follow",
         body: JSON.stringify({
-            code: document.getElementById('codeInput').value
+            code: document.getElementById('userCode').value
         }),
     }).then(res => res.json()).then(res => {
-
         document.getElementById('responseContainer').classList.remove('hidden');
         let authContainer = document.getElementById('authContainer');
         if (authContainer !== undefined && authContainer !== null && res.error === undefined)
@@ -45,7 +44,6 @@ function submitCode() {
             document.getElementById('logoutContainer').classList.add('hidden');
             document.getElementById('welcome').innerHTML = 'Tere, ' + res.name + '!';
             document.getElementById('recipient').innerHTML = res.giftingTo;
-            window.location.href = "http://"+location.host +"/cdoc_files/"+res.name+".cdoc";
             if (!snowActive) {
                 snowActive = true;
                 createSnowFlakes();
@@ -55,3 +53,17 @@ function submitCode() {
         }
     });
 }
+
+window.addEventListener("load", (event) => {
+    const togglePassword = document.querySelector('#toggleUserCodeVisibility');
+    if (togglePassword === null) return;
+    togglePassword.addEventListener('click', function () {
+        const password = document.querySelector('#userCode');
+
+        const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+        password.setAttribute('type', type);
+
+        this.querySelector('i').classList.toggle('bi-eye');
+        this.querySelector('i').classList.toggle('bi-eye-slash');
+    });
+});

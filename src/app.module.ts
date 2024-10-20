@@ -1,27 +1,24 @@
-import { GoogleStrategy } from './auth/google.strategy';
 import { Module } from '@nestjs/common';
 import { HomeController } from './home/home.controller';
-import { HomeService } from './home/home.service';
 import { ConfigModule } from '@nestjs/config';
 import { AuthController } from './auth/auth.controller';
-import { AuthService } from './auth/auth.service';
 import { UserModule } from './user/user.module';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { dataBaseConfig } from './database/database.config';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
-import { User } from './user/entities/user.entity';
+import { EncryptionModule } from './encryption/encryption.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot(), 
-    UserModule, 
+    UserModule,
     AdminModule, 
     AuthModule, 
-    SequelizeModule.forRootAsync(dataBaseConfig), 
-    SequelizeModule.forFeature([User])
+    EncryptionModule,
+    SequelizeModule.forRootAsync(dataBaseConfig)
   ],
   controllers: [HomeController, AuthController],
-  providers: [HomeService, AuthService, GoogleStrategy],
+  providers: [],
 })
 export class AppModule { }

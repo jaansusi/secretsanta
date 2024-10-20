@@ -3,8 +3,8 @@ services:
     build:
       context: ..
       dockerfile: infra/cdoc_web.Dockerfile
-    environment:
-      CDOC_PORT: ${CDOC_PORT}
+    ports: 
+      - "${CDOC_PORT}:80"
     networks:
       - santa-network
 

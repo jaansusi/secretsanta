@@ -3,14 +3,11 @@
 Secret Santa is a web application built with NestJS that allows users to participate in a Secret Santa gift exchange.
 This project uses a SQLite database and supports Docker for containerization.
 
-## Table of Contents
+## User management
 
-- [Installation](#installation)
-- [Running the Application](#running-the-application)
-- [Environment Variables](#environment-variables)
-- [Project Structure](#project-structure)
-- [Scripts](#scripts)
-- [License](#license)
+.env file defines an e-mail that will always authenticate as an administrator.
+
+Administrators have access to Users and Families pages to manage participants.
 
 ## Source code
 
@@ -36,19 +33,19 @@ Source code is available in [Github - https://github.com/jaansusi/secretsanta](h
 
 ### Using Docker
 
-1. Build and run only the database Docker container
+1. Build and run the database Docker container
     ```sh
-    docker-compose --env-file .env -f ./infra/compose_db.yaml up
+    yarn infra:up
     ```
 
 2. Build and run the main Docker container:
     ```sh
-    docker-compose up
+    docker-compose up -d
     ```
 
 3. Build and run the CDOC utility with Docker:
     ```sh
-    docker-compose --env-file .env -f ./infra/compose_cdoc.yaml up
+    yarn cdoc:up
     ```
 
 4. The application will be available at [http://localhost](http://localhost)
@@ -83,7 +80,6 @@ The following environment variables are required:
 - `GOOGLE_CLIENT_ID`: Google OAuth Client ID.
 - `GOOGLE_CLIENT_SECRET`: Google OAuth Client Secret.
 - `COOKIE_SECRET`: Secret key for signing cookies.
-- `INPUT_FILE_PATH`: Path to the input JSON file with people.
 
 ## Scripts
 
