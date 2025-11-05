@@ -15,6 +15,7 @@ export class ChatGPTController {
 
     @Post('send')
     public async generateResponse(@Req() request: Request, @Body() prompt: ChatMessageDto): Promise<ChatResponseDto> {
+        let dto = new ChatResponseDto();
         if (request.cookies['santa_auth']) {
             let user = await this.userService.findOne({ where: { id: request.cookies['santa_auth'] } });
             if (!user) {
@@ -24,9 +25,12 @@ export class ChatGPTController {
             let response = await this.chatGPTService
                 .generateResponse(prompt, user)
                 .then((msg: ChatCompletionMessage) => msg.content);
-            let dto = new ChatResponseDto();
+
+            if (!response) {
+                throw new Error('No response from ChatGPT');
+            }
             dto.content = response;
-            return dto;
         }
+        return dto;
     }
 }

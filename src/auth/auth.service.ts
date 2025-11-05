@@ -2,18 +2,20 @@ import { Injectable } from '@nestjs/common';
 import { User } from '../user/entities/user.entity';
 import { UserService } from 'src/user/user.service';
 import { CreateUserDto } from 'src/user/dto/create-user.dto';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
   constructor(
     private userService: UserService,
+    private configService: ConfigService,
   ) { }
 
-  async getUserWithGoogleLogin(req): Promise<User> {
+  async getUserWithGoogleLogin(req: any): Promise<User | null> {
     if (!req.user) {
       return null;
     }
-    const adminEmail = this.userService.cleanGmailAddress(process.env.ADMIN_EMAIL);
+    const adminEmail = this.userService.cleanGmailAddress(this.configService.get<string>('ADMIN_EMAIL') || '');
     const cleanedEmail = this.userService.cleanGmailAddress(req.user.email);
     const existingUser = await this.userService.getByEmail(cleanedEmail);
     if (existingUser) {

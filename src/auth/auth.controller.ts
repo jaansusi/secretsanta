@@ -17,6 +17,9 @@ export class AuthController {
     async googleAuthRedirect(@Req() req: Request): Promise<any> {
         try {
             const user = await this.authService.getUserWithGoogleLogin(req);
+            if (req.res == null || user == null) {
+                return { result: 'Authentication failed.' };
+            }
             req.res.cookie('santa_auth', user.id, { maxAge: 5184000000, httpOnly: false });
             req.res.cookie('santa_auth_provider', 'google', { maxAge: 5184000000, httpOnly: false });
             return { result: user.giftingTo, success: true };
@@ -28,6 +31,9 @@ export class AuthController {
     @Get('logout')
     @Redirect('/')
     async logout(@Req() req: Request) {
+        if (req.res == null) {
+            return { success: false };
+        }
         req.res.clearCookie('santa_auth');
         req.res.clearCookie('santa_google');
         return { success: true };

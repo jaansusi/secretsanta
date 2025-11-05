@@ -46,21 +46,4 @@ export class AdminController {
             }
         }
     }
-
-    @Get('messages')
-    @Render('messages')
-    async messages(@Req() request: Request): Promise<any> {
-        if (request.cookies['santa_auth']) {
-            const id = request.cookies['santa_auth'];
-            let user = await this.userService.getById(id);
-            if (user && user.isAdmin) {
-                try {
-                    return this.adminService.getMessages();
-                } catch (err) {
-                    return { messages: [{content: 'Eip'}] };
-                }
-            }
-        }
-        return { messages: [{content: 'Eip'}] };
-    }
 }

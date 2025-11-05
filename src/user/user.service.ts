@@ -6,6 +6,7 @@ import { AssignUserDto } from './dto/assign-user.dto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { EncryptionService, EncryptionStrategy } from 'src/encryption/encryption.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class UserService {
@@ -13,6 +14,7 @@ export class UserService {
         @InjectModel(User)
         private userRepository: typeof User,
         private encryptionService: EncryptionService,
+        private configService: ConfigService,
     ) { }
 
     // to-do: deprecate "find" functions that pass through options, 
@@ -78,7 +80,7 @@ export class UserService {
 
     public async getUserCdoc(idCode: string): Promise<string> {
         try {
-            const file = fs.readFileSync(path.join(process.env.CDOC_PATH, idCode + '.cdoc'), 'utf8');
+            const file = fs.readFileSync(path.join(this.configService.get('CDOC_PATH') || '', idCode + '.cdoc'), 'utf8');
             return file;
         } catch (err) {
             console.error(err);

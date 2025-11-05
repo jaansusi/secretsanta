@@ -4,6 +4,7 @@ import { AssignUserDto } from 'src/user/dto/assign-user.dto';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+import { ConfigService } from '@nestjs/config';
 
 
 export enum EncryptionStrategy {
@@ -15,6 +16,10 @@ export enum EncryptionStrategy {
 
 @Injectable()
 export class EncryptionService {
+    constructor(
+        private readonly configService: ConfigService,
+    ) { }
+
     public async encryptGiftingTo(user: User, giftingTo: string): Promise<AssignUserDto> {
         switch (user.encryptionStrategy) {
             case EncryptionStrategy.CODE:
@@ -31,6 +36,9 @@ export class EncryptionService {
     public decryptGiftingTo(user: User): string {
         switch (user.encryptionStrategy) {
             case EncryptionStrategy.CODE:
+                if (!user.decryptionCode) {
+                    throw new Error('Trying to decrypt using code strategy, user does not have decryption code!');
+                }
                 return this.decryptWithCode(user.giftingTo, user.decryptionCode, user.id.toString(), user.iv);
             case EncryptionStrategy.CDOC:
                 throw new Error('CDOC decryption can not be done server-side');
@@ -42,7 +50,7 @@ export class EncryptionService {
     }
 
     private encryptWithCode(input: string, salt: string): AssignUserDto {
-        const password = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        const password = Math.random().toString(36).substring(2, 8) + Math.random().toString(36).substring(2, 8);
         // Derive a key using PBKDF2
         const key = crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha256');
         // Generate a random Initialization Vector
@@ -61,7 +69,7 @@ export class EncryptionService {
     }
 
     private async encryptWithCdoc(fromName: string, toName: string, idCode: string): Promise<AssignUserDto> {
-        await fetch(process.env.CDOC_HOST + ":" + process.env.CDOC_PORT + "/cdoc", {
+        await fetch(this.configService.get<string>('CDOC_HOST') + ":" + this.configService.get<string>('CDOC_PORT') + "/cdoc", {
             method: 'POST',
             body: fromName + "&" + toName + "&" + idCode,
             headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }
@@ -69,7 +77,7 @@ export class EncryptionService {
         ).then((result) => {
             return result.text();
         }).then((data) => {
-            fs.writeFileSync(path.join(process.env.CDOC_PATH, idCode + ".cdoc"), data);
+            fs.writeFileSync(path.join(this.configService.get<string>('CDOC_PATH') || '', idCode + ".cdoc"), data);
             console.log('CDOC file created');
         });
         let assignUserDto = new AssignUserDto();
