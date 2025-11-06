@@ -50,7 +50,8 @@ export class EncryptionService {
     }
 
     private encryptWithCode(input: string, salt: string): AssignUserDto {
-        const password = Math.random().toString(36).substring(2, 8) + Math.random().toString(36).substring(2, 8);
+        // Generate a cryptographically secure random password of at least 26 characters
+        const password = crypto.randomBytes(20).toString('base64').substring(0, 26);
         // Derive a key using PBKDF2
         const key = crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha256');
         // Generate a random Initialization Vector
