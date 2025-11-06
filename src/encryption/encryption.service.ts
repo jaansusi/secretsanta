@@ -5,6 +5,7 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ConfigService } from '@nestjs/config';
+import { CustomLoggerService } from 'src/logger/logger.service';
 
 
 export enum EncryptionStrategy {
@@ -18,6 +19,7 @@ export enum EncryptionStrategy {
 export class EncryptionService {
     constructor(
         private readonly configService: ConfigService,
+        private readonly logger: CustomLoggerService
     ) { }
 
     public async encryptGiftingTo(user: User, giftingTo: string): Promise<AssignUserDto> {
@@ -78,7 +80,7 @@ export class EncryptionService {
             return result.text();
         }).then((data) => {
             fs.writeFileSync(path.join(this.configService.get<string>('CDOC_PATH') || '', idCode + ".cdoc"), data);
-            console.log('CDOC file created');
+            this.logger.log('CDOC file created');
         });
         let assignUserDto = new AssignUserDto();
         assignUserDto.giftingTo = fromName + ".cdoc";

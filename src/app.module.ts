@@ -9,10 +9,14 @@ import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { EncryptionModule } from './encryption/encryption.module';
 import { ChatGPTModule } from './chatgpt/chatgpt.module';
+import { LoggerModule } from './logger/logger.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot(), 
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }), 
+    LoggerModule,
     UserModule,
     AdminModule, 
     AuthModule, 
