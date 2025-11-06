@@ -16,12 +16,7 @@
     "infra:down": "docker-compose --env-file .env -f ./infra/compose_db.yaml down",
     "cdoc:up": "docker-compose --env-file .env -f ./infra/compose_cdoc.yaml up -d",
     "cdoc:down": "docker-compose --env-file .env -f ./infra/compose_cdoc.yaml down",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.16",
@@ -48,7 +43,9 @@
     "@nestjs/cli": "^10.4.5",
     "@nestjs/schematics": "^10.0.0",
     "@nestjs/testing": "^10.0.0",
+    "@types/cookie-parser": "^1.4.10",
     "@types/express": "^4.17.17",
+    "@types/hbs": "^4.0.5",
     "@types/jest": "^29.5.2",
     "@types/node": "^20.9.0",
     "@types/passport-google-oauth20": "^2.0.14",

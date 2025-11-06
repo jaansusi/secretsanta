@@ -5,10 +5,11 @@ import { UserController } from './user.controller';
 import { UserService } from './user.service';
 import { FamilyModule } from 'src/family/family.module';
 import { EncryptionModule } from 'src/encryption/encryption.module';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   controllers: [UserController],
-  imports: [SequelizeModule.forFeature([User, UserHistoricalEntry]), FamilyModule, EncryptionModule],
+  imports: [ConfigModule, SequelizeModule.forFeature([User, UserHistoricalEntry]), FamilyModule, EncryptionModule],
   providers: [UserService],
   exports: [UserService],
 })

@@ -36,7 +36,7 @@ export class HomeController {
     }
     if (request.query.code) {
       let user = await this.userService.findOne({ where: { decryptionCode: request.query.code } });
-      if (user) {
+      if (user && request.res) {
         request.res.cookie('santa_auth', user.id, { maxAge: 5184000000, httpOnly: false });
         return {
           encryptionWithCode: true,
@@ -63,7 +63,9 @@ export class HomeController {
     let user = await this.userService.findOne({ where: { decryptionCode: body.code } });
     if (!user)
       return { error: 'Seda koodi ei leitud süsteemist!' };
-    request.res.cookie('santa_auth', user.id, { maxAge: 5184000000, httpOnly: false });
+    if (request.res) {
+      request.res.cookie('santa_auth', user.id, { maxAge: 5184000000, httpOnly: false });
+    }
     // To-do: logic based on users encryption strategy
     // To-do: code decryption should use input, not the db value
     try {
@@ -80,7 +82,7 @@ export class HomeController {
     if (request.cookies['santa_auth']) {
       const id = request.cookies['santa_auth'];
       const user = await this.userService.getById(id);
-      if (!user || user.encryptionStrategy !== EncryptionStrategy.CDOC) {
+      if (!user || user.encryptionStrategy !== EncryptionStrategy.CDOC || request.res === undefined) {
         return null;
       }
       request.res.setHeader('Content-Disposition', 'attachment; filename="' + user.idCode + '.cdoc"');

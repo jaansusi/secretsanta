@@ -54,6 +54,9 @@ export class AdminService {
         // console.log('-------------------');
         // console.log(`Depth: ${depth}`);
         const currentNode = remainingNodes.shift();
+        if (!currentNode) {
+            return [];
+        }
         // console.log(`Current node: ${currentNode.name}`);
         // console.log(`Remaining nodes: ${remainingNodes.map(x => x.name)}`);
         const forbiddenPathsFromThisNode = await this.generateAllForbiddenPaths(currentNode, remainingNodes);
@@ -79,7 +82,7 @@ export class AdminService {
     }
 
     private async generateAllForbiddenPaths(node: User, remainingNodes: User[]): Promise<User[]> {
-        let forbiddenPaths = [];
+        let forbiddenPaths: User[] = [];
         if (node.family) {
             let family = await this.familyService.findOne({ where: { id: node.family.id }, include: [{ model: User }] });
             forbiddenPaths = family.members;

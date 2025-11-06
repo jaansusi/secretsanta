@@ -6,6 +6,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { ChatEntry } from './entities/chat-entry.entity';
 import { UserService } from 'src/user/user.service';
 import { User } from 'src/user/entities/user.entity';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class ChatGPTService {
@@ -14,7 +15,8 @@ export class ChatGPTService {
     constructor(
         @InjectModel(ChatEntry)
         private readonly chatEntryRepository: typeof ChatEntry,
-        private readonly userService: UserService
+        private readonly userService: UserService,
+        private readonly configService: ConfigService
     ) {
         this.openai = new OpenAI();
     }
@@ -53,7 +55,7 @@ Kasutaja nimi on ${user.name}.
         let messageHistory = messages.map(m => ({ role: m.userId ? "user" : "assistant", content: m.content } as ChatCompletionMessageParam));
 
         const response = await this.openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: this.configService.get<string>('OPENAI_MODEL') || 'gpt-5-mini',
             messages: [
                 systemMessage,
                 ...messageHistory

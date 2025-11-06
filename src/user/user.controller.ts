@@ -31,7 +31,7 @@ export class UserController {
                         }
                     }
                 });
-                let strategies = Object.keys(EncryptionStrategy).map(key => EncryptionStrategy[key]);
+                let strategies = Object.keys(EncryptionStrategy).map(key => EncryptionStrategy[key as keyof typeof EncryptionStrategy]);
                 let families = await this.familyService.findAll();
                 return { users: usersDto, isAdmin: true, strategies: strategies, families: families, usersForLastYear: users.map(function(user){return {id: user.id, name: user.name}}) };
             }
@@ -47,6 +47,9 @@ export class UserController {
     @Get('user/:id')
     async getUser(@Req() request: Request): Promise<ReadUserDto> {
         const user = await this.userService.getById(parseInt(request.params.id));
+        if (!user) {
+            throw new Error('User not found');
+        }
         let userDto = new ReadUserDto(user);
         return userDto;
     }
