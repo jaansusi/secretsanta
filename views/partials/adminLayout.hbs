@@ -1,0 +1,12 @@
+<main role="main" class="container my-5">
+    {{#if isAdmin}}
+    <div class="admin-container">
+        {{> adminheader}}
+        {{{content}}}
+    </div>
+    {{else}}
+    <div class="alert alert-warning mt-5" role="alert">
+        You do not have admin privileges.
+    </div>
+    {{/if}}
+</main>

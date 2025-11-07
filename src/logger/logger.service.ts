@@ -3,7 +3,7 @@ import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
 
 export class WinstonLoggerService implements LoggerService {
-    private readonly logger;
+    private readonly logger : LoggerService;
 
     constructor() {
         this.logger = WinstonModule.createLogger({
