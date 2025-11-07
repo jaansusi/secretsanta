@@ -1,11 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { User } from 'src/user/entities/user.entity';
 import { AssignUserDto } from 'src/user/dto/assign-user.dto';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ConfigService } from '@nestjs/config';
-import { CustomLoggerService } from 'src/logger/logger.service';
 
 
 export enum EncryptionStrategy {
@@ -19,7 +18,7 @@ export enum EncryptionStrategy {
 export class EncryptionService {
     constructor(
         private readonly configService: ConfigService,
-        private readonly logger: CustomLoggerService
+        private readonly logger: Logger
     ) { }
 
     public async encryptGiftingTo(user: User, giftingTo: string): Promise<AssignUserDto> {

@@ -1,45 +1,36 @@
-import { Injectable, LoggerService } from '@nestjs/common';
+import { LoggerService } from '@nestjs/common';
+import { WinstonModule } from 'nest-winston';
+import * as winston from 'winston';
 
-@Injectable()
-export class CustomLoggerService implements LoggerService {
-  private serviceName = 'saaris-api';
+export class WinstonLoggerService implements LoggerService {
+    private readonly logger;
 
-  private formatMessage(level: string, message: any, context?: string) {
-    const logObject = {
-      level,
-      message: typeof message === 'object' ? JSON.stringify(message) : message,
-      service: this.serviceName,
-      timestamp: new Date().toISOString(),
-      ...(context && { context }),
-    };
-    return JSON.stringify(logObject);
-  }
+    constructor() {
+        this.logger = WinstonModule.createLogger({
+            transports: [
+                new (winston.transports.Console)({
+                    format: winston.format.combine(
+                        winston.format.timestamp(),
+                        winston.format.printf(({ timestamp, level, message }: any) => {
+                            return JSON.stringify({ timestamp, level, message });
+                        }),
+                    ),
+                }),
+            ],
+            level: 'debug',
+        });
+    }
 
-  log(message: any, context?: string) {
-    console.log(this.formatMessage('info', message, context));
-  }
-
-  error(message: any, trace?: string, context?: string) {
-    const logObject = {
-      level: 'error',
-      message: typeof message === 'object' ? JSON.stringify(message) : message,
-      service: this.serviceName,
-      timestamp: new Date().toISOString(),
-      ...(context && { context }),
-      ...(trace && { trace }),
-    };
-    console.error(JSON.stringify(logObject));
-  }
-
-  warn(message: any, context?: string) {
-    console.warn(this.formatMessage('warn', message, context));
-  }
-
-  debug(message: any, context?: string) {
-    console.debug(this.formatMessage('debug', message, context));
-  }
-
-  verbose(message: any, context?: string) {
-    console.log(this.formatMessage('verbose', message, context));
-  }
+    log(message: string) {
+        this.logger.log(message);
+    }
+    error(message: string, trace: string) {
+        this.logger.error(message, trace);
+    }
+    warn(message: string) {
+        this.logger.warn(message);
+    }
+    debug(message: string) {
+        this.logger.debug ? this.logger.debug(message) : this.logger.log(message);
+    }
 }

@@ -1,11 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { User } from 'src/user/entities/user.entity';
 import { EncryptionService, EncryptionStrategy } from 'src/encryption/encryption.service';
 import { UserService } from 'src/user/user.service';
 import { FamilyService } from 'src/family/family.service';
 import { Family } from 'src/family/entities/family.entity';
 import * as crypto from 'crypto';
-import { CustomLoggerService } from 'src/logger/logger.service';
 
 @Injectable()
 export class AdminService {
@@ -15,7 +14,7 @@ export class AdminService {
         private userService: UserService,
         private familyService: FamilyService,
         private encriptionService: EncryptionService,
-        private logger: CustomLoggerService
+        private readonly logger: Logger
     ) { }
 
     public async assignSantas(): Promise<boolean> {

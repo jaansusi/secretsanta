@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, Logger } from '@nestjs/common';
 import { HomeController } from './home/home.controller';
 import { ConfigModule } from '@nestjs/config';
 import { AuthController } from './auth/auth.controller';
@@ -9,17 +9,16 @@ import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { EncryptionModule } from './encryption/encryption.module';
 import { ChatGPTModule } from './chatgpt/chatgpt.module';
-import { LoggerModule } from './logger/logger.module';
+
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-    }), 
-    LoggerModule,
+    }),
     UserModule,
-    AdminModule, 
-    AuthModule, 
+    AdminModule,
+    AuthModule,
     EncryptionModule,
     ChatGPTModule,
     SequelizeModule.forRootAsync(dataBaseConfig)
@@ -27,4 +26,6 @@ import { LoggerModule } from './logger/logger.module';
   controllers: [HomeController, AuthController],
   providers: [],
 })
-export class AppModule { }
+export class AppModule {
+  constructor() {}
+}

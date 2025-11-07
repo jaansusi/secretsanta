@@ -1,16 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { User } from '../user/entities/user.entity';
 import { UserService } from 'src/user/user.service';
 import { CreateUserDto } from 'src/user/dto/create-user.dto';
 import { ConfigService } from '@nestjs/config';
-import { CustomLoggerService } from 'src/logger/logger.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private userService: UserService,
     private configService: ConfigService,
-    private logger: CustomLoggerService,
+    private readonly logger: Logger,
   ) { }
 
   async getUserWithGoogleLogin(req: any): Promise<User | null> {
