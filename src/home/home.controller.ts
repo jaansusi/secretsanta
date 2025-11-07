@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Render, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Post, Render, Req } from '@nestjs/common';
 import { Request } from 'express';
 import { UserService } from 'src/user/user.service';
 import { EncryptionService, EncryptionStrategy } from 'src/encryption/encryption.service';

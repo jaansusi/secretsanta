@@ -4,7 +4,6 @@ import { ChatCompletionMessage, ChatCompletionMessageParam } from 'openai/resour
 import { ChatMessageDto } from './dtos/chat-message.dto';
 import { InjectModel } from '@nestjs/sequelize';
 import { ChatEntry } from './entities/chat-entry.entity';
-import { UserService } from 'src/user/user.service';
 import { User } from 'src/user/entities/user.entity';
 import { ConfigService } from '@nestjs/config';
 
@@ -15,7 +14,6 @@ export class ChatGPTService {
     constructor(
         @InjectModel(ChatEntry)
         private readonly chatEntryRepository: typeof ChatEntry,
-        private readonly userService: UserService,
         private readonly configService: ConfigService
     ) {
         this.openai = new OpenAI();

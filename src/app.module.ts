@@ -1,4 +1,4 @@
-import { Module, Logger } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { HomeController } from './home/home.controller';
 import { ConfigModule } from '@nestjs/config';
 import { AuthController } from './auth/auth.controller';

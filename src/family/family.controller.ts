@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, forwardRef, Get, Inject, Post, Render, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Render, Req } from '@nestjs/common';
 import { Request } from 'express';
 import { FamilyService } from './family.service';
 import { CreateFamilyDto } from './dto/create-family.dto';
@@ -15,7 +15,7 @@ export class FamilyController {
     async displayFamiliesPage(@Req() request: Request): Promise<any> {
         if (request.cookies['santa_auth']) {
             // to-do: check user credentials without creating a circular dependency between user and family
-            const id = request.cookies['santa_auth'];
+            // const id = request.cookies['santa_auth'];
             const families = await this.familyService.findAll({ include: ['members'] });
             let familiesDto: ReadFamilyDto[] = [];
             for (let family of families) {

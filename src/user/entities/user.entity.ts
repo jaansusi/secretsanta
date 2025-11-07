@@ -1,4 +1,4 @@
-import { Column, Table, Model, BelongsToMany, HasOne, BelongsTo, HasMany } from 'sequelize-typescript';
+import { Column, Table, Model, BelongsTo, HasMany } from 'sequelize-typescript';
 import { EncryptionStrategy } from 'src/encryption/encryption.service';
 import { Family } from 'src/family/entities/family.entity';
 
