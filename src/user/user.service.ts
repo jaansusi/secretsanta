@@ -5,7 +5,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { AssignUserDto } from './dto/assign-user.dto';
 import * as fs from 'fs';
 import * as path from 'path';
-import { EncryptionService, EncryptionStrategy } from 'src/encryption/encryption.service';
+// import { EncryptionService } from 'src/encryption/encryption.service';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -13,7 +13,7 @@ export class UserService {
     constructor(
         @InjectModel(User)
         private userRepository: typeof User,
-        private encryptionService: EncryptionService,
+        // private encryptionService: EncryptionService,
         private configService: ConfigService,
     ) { }
 

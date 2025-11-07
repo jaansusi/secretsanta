@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { User } from 'src/user/entities/user.entity';
 import { AssignUserDto } from 'src/user/dto/assign-user.dto';
 import * as crypto from 'crypto';
@@ -18,6 +18,7 @@ export enum EncryptionStrategy {
 export class EncryptionService {
     constructor(
         private readonly configService: ConfigService,
+        private readonly logger: Logger
     ) { }
 
     public async encryptGiftingTo(user: User, giftingTo: string): Promise<AssignUserDto> {
@@ -79,7 +80,7 @@ export class EncryptionService {
             return result.text();
         }).then((data) => {
             fs.writeFileSync(path.join(this.configService.get<string>('CDOC_PATH') || '', idCode + ".cdoc"), data);
-            console.log('CDOC file created');
+            this.logger.log('CDOC file created');
         });
         let assignUserDto = new AssignUserDto();
         assignUserDto.giftingTo = fromName + ".cdoc";

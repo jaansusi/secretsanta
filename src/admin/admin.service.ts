@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { User } from 'src/user/entities/user.entity';
 import { EncryptionService, EncryptionStrategy } from 'src/encryption/encryption.service';
 import { UserService } from 'src/user/user.service';
@@ -13,26 +13,21 @@ export class AdminService {
     constructor(
         private userService: UserService,
         private familyService: FamilyService,
-        private encriptionService: EncryptionService
+        private encriptionService: EncryptionService,
+        private readonly logger: Logger
     ) { }
 
     public async assignSantas(): Promise<boolean> {
         await this.userService.cleanGiftingToForAll();
         const participants = await this.userService.findAll({ include: [{ model: Family }] });
-        // console.log('-------------------');
-        // console.log(`Participants: ${participants.map(x => x.name)}`);
+        
         this.shuffledParticipants = this.unbiasedShuffle(participants);
-        // console.log(`Shuffled participants: ${this.shuffledParticipants.map(x => x.name)}`);
         // Create deep copy of shuffled participants to avoid modifying the original list.
         const generatedPath = await this.generateGraphPath(JSON.parse(JSON.stringify(this.shuffledParticipants)), 1);
-        // console.log('-------------------');
-        // console.log(`Generated path: ${generatedPath.map(x => x.name)}`);
-        // console.log(`Shuffled participants: ${this.shuffledParticipants.map(x => x.name)}`);
         if (generatedPath.length !== this.shuffledParticipants.length) {
             return false;
         }
         for (let i = 0; i < generatedPath.length; i++) {
-            // console.log('-------------------');
             const nextIndex = i === generatedPath.length - 1 ? 0 : i + 1;
             try {
 
@@ -44,25 +39,19 @@ export class AdminService {
                 }
                 await this.userService.updateUser(user.id, assignUserDto);
             } catch (e) {
-                console.log(e);
+                this.logger.error(e);
             }
         }
         return true;
     }
 
     private async generateGraphPath(remainingNodes: User[], depth: number): Promise<User[]> {
-        // console.log('-------------------');
-        // console.log(`Depth: ${depth}`);
         const currentNode = remainingNodes.shift();
         if (!currentNode) {
             return [];
         }
-        // console.log(`Current node: ${currentNode.name}`);
-        // console.log(`Remaining nodes: ${remainingNodes.map(x => x.name)}`);
         const forbiddenPathsFromThisNode = await this.generateAllForbiddenPaths(currentNode, remainingNodes);
-        // console.log(`Forbidden paths: ${forbiddenPathsFromThisNode.map(x => x.name)}`);
         const possiblePathsFromThisNode = remainingNodes.filter(x => !forbiddenPathsFromThisNode.map(y => y.id).includes(x.id));
-        // console.log(`Possible paths: ${possiblePathsFromThisNode.map(x => x.name)}`);
         if (remainingNodes.length === 0) {
             // Reached the last node on the list, validate that it has a path to the first.
             let firstNode = this.shuffledParticipants[0];
@@ -77,7 +66,6 @@ export class AdminService {
                 return [currentNode, ...path];
             }
         }
-        // console.error('No path found');
         return [];
     }
 
@@ -163,24 +151,5 @@ export class AdminService {
         let hashData = (await this.userService.findAll({ order: [['id', 'ASC']], include: [{ model: Family }] })).map(x => x.id + x.name + x.giftingTo + x.encryptionStrategy + x.email + x.family?.id).join();
         let dbHash = crypto.createHash("shake256", { outputLength: 4 }).update(hashData).digest('hex');
         return dbHash;
-    }
-
-    public async getMessages(): Promise<any> {
-        let users = await this.userService.findAll();
-        let messages = [];
-        for (let user of users) {
-            messages.push({
-                content:
-                    `--------------------------------------------------
-Hei!
-Oma loosi tõmbamiseks vaata siia: ${process.env.HOST}?code=${user.decryptionCode}
-Oma jõulusoovid saad kirja panna siin: ${process.env.HOST}/kiri
-
-Ilusat jõuluaega!
---------------------------------------------------`
-            })
-        }
-        console.log(messages);
-        return { messages: messages };
     }
 }

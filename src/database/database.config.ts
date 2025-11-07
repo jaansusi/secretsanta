@@ -1,5 +1,8 @@
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SequelizeModuleAsyncOptions } from '@nestjs/sequelize';
+import { WinstonLoggerService } from '../logger/logger.service';
+
+const logger = new WinstonLoggerService();
 
 export const dataBaseConfig: SequelizeModuleAsyncOptions = {
   imports: [ConfigModule],
@@ -12,6 +15,7 @@ export const dataBaseConfig: SequelizeModuleAsyncOptions = {
     database: configService.get<string>('DB_NAME'),
     autoLoadModels: true,
     synchronize: true,
+    logging: (msg) => logger.debug(msg),
   }),
   inject: [ConfigService],
 };

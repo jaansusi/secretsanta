@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { User } from '../user/entities/user.entity';
 import { UserService } from 'src/user/user.service';
 import { CreateUserDto } from 'src/user/dto/create-user.dto';
@@ -9,10 +9,12 @@ export class AuthService {
   constructor(
     private userService: UserService,
     private configService: ConfigService,
+    private readonly logger: Logger,
   ) { }
 
   async getUserWithGoogleLogin(req: any): Promise<User | null> {
     if (!req.user) {
+      this.logger.warn('Google login attempt with no user data!');
       return null;
     }
     const adminEmail = this.userService.cleanGmailAddress(this.configService.get<string>('ADMIN_EMAIL') || '');

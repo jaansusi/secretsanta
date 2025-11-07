@@ -10,12 +10,15 @@ import { AuthModule } from './auth/auth.module';
 import { EncryptionModule } from './encryption/encryption.module';
 import { ChatGPTModule } from './chatgpt/chatgpt.module';
 
+
 @Module({
   imports: [
-    ConfigModule.forRoot(), 
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
     UserModule,
-    AdminModule, 
-    AuthModule, 
+    AdminModule,
+    AuthModule,
     EncryptionModule,
     ChatGPTModule,
     SequelizeModule.forRootAsync(dataBaseConfig)
@@ -23,4 +26,6 @@ import { ChatGPTModule } from './chatgpt/chatgpt.module';
   controllers: [HomeController, AuthController],
   providers: [],
 })
-export class AppModule { }
+export class AppModule {
+  constructor() {}
+}
