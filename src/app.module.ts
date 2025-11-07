@@ -26,6 +26,4 @@ import { ChatGPTModule } from './chatgpt/chatgpt.module';
   controllers: [HomeController, AuthController],
   providers: [],
 })
-export class AppModule {
-  constructor() {}
-}
+export class AppModule {}
