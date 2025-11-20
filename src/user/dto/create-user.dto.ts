@@ -9,6 +9,8 @@ export class CreateUserDto {
     email: string;
     idCode: string;
     encryptionStrategy: string;
+    communicationStrategy: string;
+    phoneNumber: string;
     familyId: number;
     isAdmin: boolean;
     lastYearGiftingToId: number;

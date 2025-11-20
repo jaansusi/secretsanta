@@ -4,13 +4,36 @@ function generateSantas() {
         location.href = '/admin/generate';
 }
 
+function sendSMS() {
+    let a = confirm("Send SMS to all users with SMS communication strategy?");
+    if (a) {
+        fetch("/admin/send-sms", {
+            method: "POST",
+            headers: {
+                "Content-type": "application/json; charset=UTF-8"
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                location.reload();
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                alert('Failed to send SMS notifications');
+            });
+    }
+}
+
 function openUserEditModal(id) {
     if (id === undefined) {
         document.getElementById('editUserId').value = '';
         document.getElementById('editUserName').value = '';
         document.getElementById('editUserEmail').value = '';
+        document.getElementById('editUserPhoneNumber').value = '';
         document.getElementById('editUserIdCode').value = '';
         document.getElementById('editUserStrategy').value = 'code';
+        document.getElementById('editUserCommunicationStrategy').value = 'EMAIL';
         document.getElementById('editUserIsAdmin').checked = false;
         document.getElementById('editUserFamily').value = '';
         document.getElementById('editUserLastYearGiftingToId').value = '';
@@ -30,8 +53,10 @@ function openUserEditModal(id) {
             document.getElementById('editUserId').value = data.id;
             document.getElementById('editUserName').value = data.name;
             document.getElementById('editUserEmail').value = data.email;
+            document.getElementById('editUserPhoneNumber').value = data.phoneNumber || '';
             document.getElementById('editUserIdCode').value = data.idCode;
             document.getElementById('editUserStrategy').value = data.encryptionStrategy;
+            document.getElementById('editUserCommunicationStrategy').value = data.communicationStrategy || 'EMAIL';
             document.getElementById('editUserIsAdmin').checked = data.isAdmin;
             document.getElementById('editUserFamily').value = data.familyId ? data.familyId : '';
             document.getElementById('editUserLastYearGiftingToId').value = data.lastYearGiftingToId ? data.lastYearGiftingToId : '';
@@ -45,9 +70,11 @@ function saveUser() {
     const id = document.getElementById('editUserId').value;
     const name = document.getElementById('editUserName').value;
     const email = document.getElementById('editUserEmail').value;
+    const phoneNumber = document.getElementById('editUserPhoneNumber').value;
     const idCode = document.getElementById('editUserIdCode').value;
     const isAdmin = document.getElementById('editUserIsAdmin').checked;
     const strategy = document.getElementById('editUserStrategy').value;
+    const communicationStrategy = document.getElementById('editUserCommunicationStrategy').value;
     const familyId = document.getElementById('editUserFamily').value;
     const lastYearGiftingToId = document.getElementById('editUserLastYearGiftingToId').value;
     const interestingFacts = document.getElementById('editUserInterestingFacts').value;
@@ -56,8 +83,10 @@ function saveUser() {
         id: id ? parseInt(id) : null,
         name: name,
         email: email,
+        phoneNumber: phoneNumber,
         idCode: idCode,
         encryptionStrategy: strategy,
+        communicationStrategy: communicationStrategy,
         isAdmin: isAdmin,
         familyId: familyId ? parseInt(familyId) : null,
         lastYearGiftingToId: lastYearGiftingToId ? parseInt(lastYearGiftingToId) : null,

@@ -5,6 +5,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { FamilyService } from 'src/family/family.service';
 import { Family } from 'src/family/entities/family.entity';
 import { EncryptionStrategy } from 'src/encryption/encryption.service';
+import { CommunicationStrategy } from './entities/user.entity';
 import { ReadUserDto } from './dto/read-user.dto';
 
 @Controller()
@@ -31,9 +32,10 @@ export class UserController {
                         }
                     }
                 });
-                let strategies = Object.keys(EncryptionStrategy).map(key => EncryptionStrategy[key as keyof typeof EncryptionStrategy]);
+                let encryptionStrategies = Object.keys(EncryptionStrategy).map(key => EncryptionStrategy[key as keyof typeof EncryptionStrategy]);
+                let communicationStrategies = Object.keys(CommunicationStrategy).map(key => CommunicationStrategy[key as keyof typeof CommunicationStrategy]);
                 let families = await this.familyService.findAll();
-                return { users: usersDto, isAdmin: true, strategies: strategies, families: families, usersForLastYear: users.map(function(user){return {id: user.id, name: user.name}}) };
+                return { users: usersDto, isAdmin: true, encryptionStrategies: encryptionStrategies, communicationStrategies: communicationStrategies, families: families, usersForLastYear: users.map(function(user){return {id: user.id, name: user.name}}) };
             }
         }
         return {};

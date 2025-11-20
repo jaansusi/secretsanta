@@ -2,6 +2,11 @@ import { Column, Table, Model, BelongsTo, HasMany } from 'sequelize-typescript';
 import { EncryptionStrategy } from 'src/encryption/encryption.service';
 import { Family } from 'src/family/entities/family.entity';
 
+export enum CommunicationStrategy {
+    NONE = 'NONE',
+    SMS = 'SMS',
+}
+
 @Table({
     tableName: 'user',
 })
@@ -43,6 +48,20 @@ export class User extends Model {
         allowNull: false,
     })
     encryptionStrategy: string;
+
+    @Column({
+        type: 'VARCHAR(25)',
+        defaultValue: null,
+        allowNull: true,
+    })
+    communicationStrategy: string;
+
+    @Column({
+        type: 'VARCHAR(25)',
+        defaultValue: null,
+        allowNull: true,
+    })
+    phoneNumber: string;
 
     @Column({
         defaultValue: false,

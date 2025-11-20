@@ -4,6 +4,8 @@ import { EncryptionService, EncryptionStrategy } from 'src/encryption/encryption
 import { UserService } from 'src/user/user.service';
 import { FamilyService } from 'src/family/family.service';
 import { Family } from 'src/family/entities/family.entity';
+import { TwilioService } from 'src/twilio/twilio.service';
+import { CommunicationStrategy } from 'src/user/entities/user.entity';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -14,6 +16,7 @@ export class AdminService {
         private userService: UserService,
         private familyService: FamilyService,
         private encriptionService: EncryptionService,
+        private twilioService: TwilioService,
         private readonly logger: Logger
     ) { }
 
@@ -151,5 +154,32 @@ export class AdminService {
         let hashData = (await this.userService.findAll({ order: [['id', 'ASC']], include: [{ model: Family }] })).map(x => x.id + x.name + x.giftingTo + x.encryptionStrategy + x.email + x.family?.id).join();
         let dbHash = crypto.createHash("shake256", { outputLength: 4 }).update(hashData).digest('hex');
         return dbHash;
+    }
+
+    public async sendCommunicationToUsers(strategy: CommunicationStrategy): Promise<{ success: number; failed: number; message: string }> {
+        const users = await this.userService.findAll({ include: [{ model: Family }] });
+        const filteredUsers = users.filter(user => user.communicationStrategy === strategy);
+
+        if (strategy === CommunicationStrategy.SMS) {
+            const smsRecipients = filteredUsers
+                .filter(user => user.phoneNumber)
+                .map(user => ({
+                    phoneNumber: user.phoneNumber,
+                    message: `Hello ${user.name}! This is a message from Secret Santa. Your Secret Santa assignment is ready. Please check your account for details.`
+                }));
+
+            if (smsRecipients.length === 0) {
+                return { success: 0, failed: 0, message: 'No users with SMS communication strategy and phone numbers found.' };
+            }
+
+            const result = await this.twilioService.sendBulkSMS(smsRecipients);
+            return { 
+                success: result.success, 
+                failed: result.failed, 
+                message: `SMS sent to ${result.success} users, ${result.failed} failed.` 
+            };
+        }
+
+        return { success: 0, failed: 0, message: 'Only SMS communication is currently supported.' };
     }
 }

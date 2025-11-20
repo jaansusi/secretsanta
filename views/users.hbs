@@ -22,7 +22,9 @@
                             <th>ID</th>
                             <th>Name</th>
                             <th>Email</th>
-                            <th>Strategy</th>
+                            <th>Phone</th>
+                            <th>Encryption</th>
+                            <th>Communication</th>
                             <th>Family</th>
                             <th>Admin</th>
                             <th>Last year</th>
@@ -35,7 +37,9 @@
                             <td>{{id}}</td>
                             <td>{{name}}</td>
                             <td>{{email}}</td>
+                            <td>{{phoneNumber}}</td>
                             <td>{{encryptionStrategy}}</td>
+                            <td>{{communicationStrategy}}</td>
                             <td>{{family.name}}</td>
                             <td>{{#if this.isAdmin}}Yes{{else}}No{{/if}}</td>
                             <td>{{lastYearGiftingToName}}</td>
@@ -89,10 +93,25 @@
                             <div class="mb-3">
                                 <label for="editUserStrategy" class="form-label">Encryption Strategy</label>
                                 <select id="editUserStrategy" name="encryptionStrategy" class="form-select">
-                                    {{#each strategies}}
+                                    {{#each encryptionStrategies}}
                                     <option value="{{this}}">{{this}}</option>
                                     {{/each}}
                                 </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="editUserCommunicationStrategy" class="form-label">Communication
+                                    Strategy</label>
+                                <select id="editUserCommunicationStrategy" name="communicationStrategy"
+                                    class="form-select">
+                                    {{#each communicationStrategies}}
+                                    <option value="{{this}}">{{this}}</option>
+                                    {{/each}}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="editUserPhoneNumber" class="form-label">Phone Number</label>
+                                <input type="tel" class="form-control" id="editUserPhoneNumber"
+                                    placeholder="37255000000">
                             </div>
                             <div class="mb-3">
                                 <label for="editUserFamily" class="form-label">Family</label>

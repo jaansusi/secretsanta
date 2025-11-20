@@ -1,8 +1,9 @@
-import { Controller, Get, Redirect, Render, Req } from '@nestjs/common';
+import { Controller, Get, Redirect, Render, Req, Post, Res } from '@nestjs/common';
 import { AdminService } from './admin.service';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { UserService } from 'src/user/user.service';
 import { Family } from 'src/family/entities/family.entity';
+import { CommunicationStrategy } from 'src/user/entities/user.entity';
 
 @Controller('admin')
 export class AdminController {
@@ -45,5 +46,19 @@ export class AdminController {
                 return { success: result };
             }
         }
+    }
+
+    @Post('send-sms')
+    async sendSMS(@Req() request: Request, @Res() response: Response): Promise<any> {
+        if (request.cookies['santa_auth']) {
+            const id = request.cookies['santa_auth'];
+            let user = await this.userService.getById(id);
+
+            if (user && user.isAdmin) {
+                const result = await this.adminService.sendCommunicationToUsers(CommunicationStrategy.SMS);
+                return response.json(result);
+            }
+        }
+        return response.status(403).json({ message: 'Unauthorized' });
     }
 }

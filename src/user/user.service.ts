@@ -34,6 +34,8 @@ export class UserService {
             email: user.email,
             idCode: user.idCode,
             encryptionStrategy: user.encryptionStrategy,
+            communicationStrategy: user.communicationStrategy,
+            phoneNumber: user.phoneNumber,
             isAdmin: user.isAdmin,
             familyId: user.familyId,
             lastYearGiftingToId: user.lastYearGiftingToId,
