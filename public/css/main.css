@@ -269,6 +269,27 @@ i.hidden {
     border-radius: 1em;
 }
 
+/* Song containers wrapper - hover on right side when enough space */
+#songContainersWrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+@media (min-width: 1300px) {
+    #songContainersWrapper {
+        position: fixed;
+        right: 20px;
+        top: 20px;
+        max-width: 400px;
+        min-width: 350px;
+    }
+    
+    #songContainersWrapper .white-container {
+        margin: 0 !important;
+    }
+}
+
 /* Match main theme colors for the share button inside the song share container */
 #songShareContainer .btn-outline-light {
     color: rgb(135, 183, 254);
