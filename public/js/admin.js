@@ -15,6 +15,7 @@ function openUserEditModal(id) {
         document.getElementById('editUserFamily').value = '';
         document.getElementById('editUserLastYearGiftingToId').value = '';
         document.getElementById('editUserInterestingFacts').value = '';
+        document.getElementById('editUserSongForRecipient').value = '';
         var editUserModal = new bootstrap.Modal(document.getElementById('editUserModal'));
         editUserModal.show();
         return;
@@ -36,6 +37,7 @@ function openUserEditModal(id) {
             document.getElementById('editUserFamily').value = data.familyId ? data.familyId : '';
             document.getElementById('editUserLastYearGiftingToId').value = data.lastYearGiftingToId ? data.lastYearGiftingToId : '';
             document.getElementById('editUserInterestingFacts').value = data.interestingFacts;
+            document.getElementById('editUserSongForRecipient').value = data.songForRecipient ? data.songForRecipient : '';
             var editUserModal = new bootstrap.Modal(document.getElementById('editUserModal'));
             editUserModal.show();
         });
@@ -51,6 +53,7 @@ function saveUser() {
     const familyId = document.getElementById('editUserFamily').value;
     const lastYearGiftingToId = document.getElementById('editUserLastYearGiftingToId').value;
     const interestingFacts = document.getElementById('editUserInterestingFacts').value;
+    const songForRecipient = document.getElementById('editUserSongForRecipient').value;
 
     let user = {
         id: id ? parseInt(id) : null,
@@ -61,7 +64,8 @@ function saveUser() {
         isAdmin: isAdmin,
         familyId: familyId ? parseInt(familyId) : null,
         lastYearGiftingToId: lastYearGiftingToId ? parseInt(lastYearGiftingToId) : null,
-        interestingFacts: interestingFacts
+        interestingFacts: interestingFacts,
+        songForRecipient: songForRecipient
     };
     // Make the request to the server
     fetch("/user", {

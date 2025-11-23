@@ -22,7 +22,7 @@ export class AuthController {
             }
             req.res.cookie('santa_auth', user.id, { maxAge: 5184000000, httpOnly: false });
             req.res.cookie('santa_auth_provider', 'google', { maxAge: 5184000000, httpOnly: false });
-            return { result: user.giftingTo, success: true };
+            return { success: true };
         } catch (error) {
             return { result: error.message };
         }

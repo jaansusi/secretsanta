@@ -7,7 +7,6 @@
     integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="/css/auth.css">
-  <link rel="stylesheet" href="/css/chat.css">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
   <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
 </head>
@@ -15,8 +14,8 @@
 <body>
   <canvas id="snow"></canvas>
   <div class="bg">
-    {{> hoverIcons}}
     <main role="main" class="centerer text-center">
+      {{> hoverIcons}}
       {{#if isAdmin}}
       {{> adminheader}}
       {{/if}}
@@ -82,11 +81,22 @@
           </div>
         </div>
         {{/unless}}
-        {{> chat}}
+        <div id="nameContainer" class="nameContainer hidden">
+          <h1 id="welcomeHeader">Tere, <span id="userName"></span>!</h1>
+          <h3>Sinu kingisaaja on:</h3>
+          <div id="gifteeNameDisplay" class="gifteeNameDisplay">
+            <!-- Giftee name will be inserted here -->
+          </div>
+        </div>
+        <div id="songShareContainer" class="hidden" style="margin-top: 20px;">
+          <h4>🎵 Jaga laulu</h4>
+          <div class="input-group mb-3" style="max-width: 500px; margin: 0 auto;">
+            <input type="text" class="form-control" id="songUrlInput" placeholder="https://www.youtube.com/watch?v=...">
+            <button class="btn btn-outline-light" type="button" onclick="handleSaveSongShared()">Jaga</button>
+          </div>
+        </div>
         <div id="audioContainer" class="audioContainer hidden">
-          <audio hidden id="player" playsinline="">
-            <source src="/audio/music.mp3" type="audio/mpeg">
-          </audio>
+          <!-- YouTube player will be inserted here -->
         </div>
         <div id="logoutContainer" class="logoutContainer hidden">
           <a href="/auth/logout">
@@ -99,12 +109,41 @@
         </div>
     </main>
   </div>
+{{!-- 
+  <!-- Song Modal -->
+  <div class="modal fade" id="songModal" tabindex="-1" aria-labelledby="songModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="background: linear-gradient(135deg, rgba(162, 50, 39, 0.95) 0%, rgba(94, 13, 12, 0.98) 100%); color: white; border: 2px solid rgba(255, 255, 255, 0.2);">
+        <div class="modal-header" style="border-bottom: 1px solid rgba(255, 255, 255, 0.2);">
+          <h5 class="modal-title" id="songModalLabel">🎵 Jaga laulu</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>Jaga YouTube video linki teistega:</p>
+          <input type="text" class="form-control" id="songUrlInput" placeholder="https://www.youtube.com/watch?v=..." style="margin-bottom: 10px;">
+          <small class="text-white-50">Kopeeri YouTube video link ja kleebi siia</small>
+        </div>
+        <div class="modal-footer" style="border-top: 1px solid rgba(255, 255, 255, 0.2);">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Sulge</button>
+          <button type="button" class="btn btn-light" onclick="handleSaveSongShared()">Salvesta</button>
+        </div>
+      </div>
+    </div>
+  </div> --}}
 
   <script src="/js/index.js"></script>
-  <script src="/js/audio.js"></script>
   <script src="/js/snow.js"></script>
-  <script src="/js/chat.js"></script>
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+  <script src="/js/song.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" 
+    integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <script>
+    function openSongModal() {
+      const modal = new bootstrap.Modal(document.getElementById('songModal'));
+      modal.show();
+    }
+  </script>
 </body>
 
 </html>

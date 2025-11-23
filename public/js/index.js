@@ -39,14 +39,18 @@ function submitCode() {
         } else {
             document.getElementById('inputContainer').classList.add('hidden');
             document.getElementById('logoutContainer').classList.add('hidden');
-            document.getElementById('chatContainer').classList.remove('hidden');
-            initializeChat(res);
+            document.getElementById('nameContainer').classList.remove('hidden');
+            document.getElementById('songShareContainer').classList.remove('hidden');
+            document.getElementById('userName').textContent = res.name;
+            document.getElementById('gifteeNameDisplay').textContent = res.giftingTo;
+
+            // Request current shared song via WebSocket
+            socket.emit('getCurrentSong');
+            
             if (!snowActive) {
                 snowActive = true;
                 createSnowFlakes();
             }
-            if (!audioPlaying)
-                playPause();
         }
     });
 }
@@ -77,7 +81,7 @@ window.addEventListener("load", (event) => {
         this.querySelector('i').classList.toggle('bi-eye-slash');
     });
 
-    document.getElementById('pageUrl').innerHTML = window.location.href;
+    //document.getElementById('pageUrl').innerHTML = window.location.href;
     if (isInWebView()) {
         document.getElementById('googleAuthButton').classList.add('hidden');
         document.getElementById('webViewWarning').classList.remove('hidden');

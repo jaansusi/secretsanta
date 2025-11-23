@@ -13,4 +13,5 @@ export class CreateUserDto {
     isAdmin: boolean;
     lastYearGiftingToId: number;
     interestingFacts: string;
+    songForRecipient: string;
 }

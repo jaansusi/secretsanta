@@ -194,17 +194,16 @@ div.hidden,i.hidden {
     border: none;
 }
 
-#navigationIconsContainer {
-    position: fixed;
-    top: 0;
-    left: 0;
-}
 #navigationIconsContainer a {
     color: white;
     font-size: 2em;
     text-decoration: none;
 }
 
+#navigationIconsContainer svg,
+#navigationIconsContainer i {
+    filter: drop-shadow(0 0 2px black) drop-shadow(0 0 2px black);
+}
 
 
 @media (max-width: 1000px) {
@@ -238,4 +237,20 @@ div.hidden,i.hidden {
 
 #copyContainer:hover {
     background-color: #f0f0f0;
+}
+
+#nameContainer {
+    text-align: center;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 240, 240, 0.98) 100%);
+    padding: 2.5em;
+    border-radius: 1.5em;
+    box-shadow: 
+        inset 1px 1px 0px rgba(255, 255, 255, 0.8),
+        inset 0 0 20px rgba(255, 255, 255, 0.3),
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        0 2px 8px rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(200, 200, 200, 0.3);
+    backdrop-filter: blur(10px);
+    max-width: 600px;
+    margin: 0 auto;
 }

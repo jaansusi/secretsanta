@@ -69,7 +69,13 @@ export class HomeController {
     // To-do: logic based on users encryption strategy
     // To-do: code decryption should use input, not the db value
     try {
-      return { name: user.name, strategy: user.encryptionStrategy, giftingTo: await this.encryptionService.decryptGiftingTo(user) };
+      const giftingToName = await this.encryptionService.decryptGiftingTo(user);
+      
+      return { 
+        name: user.name, 
+        strategy: user.encryptionStrategy, 
+        giftingTo: giftingToName
+      };
     } catch (err) {
       console.error(err);
       // Return error and timestamp for debugging purposes
