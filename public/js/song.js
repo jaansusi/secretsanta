@@ -105,9 +105,6 @@ function playYouTubeSongShared(songUrl, updatedBy) {
                         allowfullscreen>
                     </iframe>
                 </div>
-                <div style="margin-top: 8px; text-align: center; opacity: 0.9; font-size: 0.8rem;">
-                    Kui video ei alga automaatselt, vajuta palun Play.
-                </div>
             `;
         }
     }
