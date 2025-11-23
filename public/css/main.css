@@ -137,7 +137,8 @@ canvas {
     box-shadow: inset 1px 1px 0px rgba(51, 0, 234, 0.25), inset 0 0 6px #3127a2, inset 0 80px 80px -40px #d3ccff, 1px 1px 3px rgba(255, 255, 255, 0.75);
 }
 
-div.hidden,i.hidden {
+div.hidden,
+i.hidden {
     display: none !important;
 }
 
@@ -146,15 +147,16 @@ div.hidden,i.hidden {
     color: rgb(135, 183, 254);
     border-color: rgb(135, 183, 254);
 }
+
 #toggleUserCodeVisibility:hover {
     background-color: rgb(135, 183, 254);
     color: black;
 }
 
 .no-link {
-    color:inherit;
-    text-decoration:none;
-    pointer-events:none;
+    color: inherit;
+    text-decoration: none;
+    pointer-events: none;
 }
 
 #logoutContainer {
@@ -239,18 +241,44 @@ div.hidden,i.hidden {
     background-color: #f0f0f0;
 }
 
+/* Common white container styling for all content boxes */
+.white-container {
+    min-width: 400px;
+    background-color: #ffffff;
+    padding: 1.5em 2em;
+    border-radius: 1.5em;
+    box-shadow:
+        inset 1px 1px 0px rgba(255, 255, 255, 0.8),
+        inset 0 0 10px rgba(255, 255, 255, 0.3),
+        0 4px 16px rgba(0, 0, 0, 0.35);
+    border: 2px solid rgba(200, 200, 200, 0.3);
+    max-width: 600px;
+    margin: 1.5em auto 0 auto;
+}
+
 #nameContainer {
     text-align: center;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 240, 240, 0.98) 100%);
     padding: 2.5em;
-    border-radius: 1.5em;
-    box-shadow: 
-        inset 1px 1px 0px rgba(255, 255, 255, 0.8),
-        inset 0 0 20px rgba(255, 255, 255, 0.3),
-        0 8px 32px rgba(0, 0, 0, 0.4),
-        0 2px 8px rgba(0, 0, 0, 0.3);
-    border: 2px solid rgba(200, 200, 200, 0.3);
-    backdrop-filter: blur(10px);
-    max-width: 600px;
     margin: 0 auto;
+}
+
+#gifteeNameDisplay {
+    /* ensure the immediate giftee container is also solid white */
+    background-color: #ffffff;
+    padding: 1em 1.5em;
+    border-radius: 1em;
+}
+
+/* Match main theme colors for the share button inside the song share container */
+#songShareContainer .btn-outline-light {
+    color: rgb(135, 183, 254);
+    border-color: rgb(135, 183, 254);
+    background-color: transparent;
+}
+
+#songShareContainer .btn-outline-light:hover,
+#songShareContainer .btn-outline-light:focus {
+    color: #ffffff;
+    background-color: rgb(135, 183, 254);
+    border-color: rgb(135, 183, 254);
 }

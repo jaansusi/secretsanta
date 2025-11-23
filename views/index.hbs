@@ -81,22 +81,22 @@
           </div>
         </div>
         {{/unless}}
-        <div id="nameContainer" class="nameContainer hidden">
+        <div id="nameContainer" class="nameContainer white-container hidden">
           <h1 id="welcomeHeader">Tere, <span id="userName"></span>!</h1>
           <h3>Sinu kingisaaja on:</h3>
           <div id="gifteeNameDisplay" class="gifteeNameDisplay">
             <!-- Giftee name will be inserted here -->
           </div>
         </div>
-        <div id="songShareContainer" class="hidden" style="margin-top: 20px;">
+        <div id="audioContainer" class="audioContainer white-container hidden">
+          <!-- YouTube player will be inserted here -->
+        </div>
+        <div id="songShareContainer" class="white-container hidden" style="margin-top: 20px;">
           <h4>🎵 Jaga laulu</h4>
           <div class="input-group mb-3" style="max-width: 500px; margin: 0 auto;">
             <input type="text" class="form-control" id="songUrlInput" placeholder="https://www.youtube.com/watch?v=...">
             <button class="btn btn-outline-light" type="button" onclick="handleSaveSongShared()">Jaga</button>
           </div>
-        </div>
-        <div id="audioContainer" class="audioContainer hidden">
-          <!-- YouTube player will be inserted here -->
         </div>
         <div id="logoutContainer" class="logoutContainer hidden">
           <a href="/auth/logout">

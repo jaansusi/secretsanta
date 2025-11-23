@@ -39,7 +39,7 @@ export class SongGateway {
             return { success: false, error: 'User not found' };
         }
 
-        const song = await this.songService.updateSong(data.songUrl, user.name);
+        const song = await this.songService.updateSong(data.songUrl, user.name, data.userId);
         
         // Broadcast to all connected clients
         this.server.emit('songUpdated', {
