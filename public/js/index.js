@@ -44,8 +44,10 @@ function submitCode() {
             document.getElementById('userName').textContent = res.name;
             document.getElementById('gifteeNameDisplay').textContent = res.giftingTo;
 
-            // Request current shared song via WebSocket
-            socket.emit('getCurrentSong');
+            // Initialize WebSocket connection now that user is authenticated
+            if (typeof initializeWebSocket === 'function') {
+                initializeWebSocket();
+            }
             
             if (!snowActive) {
                 snowActive = true;
@@ -85,6 +87,15 @@ window.addEventListener("load", (event) => {
     if (isInWebView()) {
         document.getElementById('googleAuthButton').classList.add('hidden');
         document.getElementById('webViewWarning').classList.remove('hidden');
+    }
+
+    // Initialize WebSocket if user is already authenticated and name is visible
+    const nameContainer = document.getElementById('nameContainer');
+    const userName = document.getElementById('userName');
+    if (nameContainer && !nameContainer.classList.contains('hidden') && userName && userName.textContent) {
+        if (typeof initializeWebSocket === 'function') {
+            initializeWebSocket();
+        }
     }
 });
 

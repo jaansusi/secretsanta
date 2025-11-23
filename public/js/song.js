@@ -1,7 +1,81 @@
-// Initialize Socket.IO connection
-const socket = io();
-
+// Initialize Socket.IO connection (lazy initialization)
+let socket = null;
 let currentUserId = null;
+let currentUserName = null;
+
+// Initialize WebSocket connection
+function initializeWebSocket() {
+    if (socket) return; // Already initialized
+    
+    socket = io();
+
+    // Request current song when connected
+    socket.on('connect', () => {
+        console.log('Connected to WebSocket');
+        
+        // Small delay to ensure DOM is ready
+        setTimeout(() => {
+            socket.emit('getCurrentSong');
+            
+            // Register user as online
+            currentUserId = getUserIdFromCookie();
+            currentUserName = getUserName();
+            if (currentUserId && currentUserName) {
+                socket.emit('userConnected', { userId: currentUserId, userName: currentUserName });
+            }
+        }, 100);
+    });
+
+    // Listen for online users updates
+    socket.on('onlineUsers', (users) => {
+        console.log('Online users:', users);
+        updateOnlineUsersList(users);
+    });
+
+    // Update the online users display
+    function updateOnlineUsersList(users) {
+        const container = document.getElementById('onlineUsersContainer');
+        if (!container) return;
+        
+        if (users.length === 0) {
+            container.classList.add('hidden');
+            return;
+        }
+        
+        container.classList.remove('hidden');
+        const usersList = document.getElementById('onlineUsersList');
+        usersList.innerHTML = users.map(user => `
+            <span class="online-user-badge">
+                <i class="bi bi-person-fill"></i> ${user.userName}
+            </span>
+        `).join('');
+    }
+
+    // Listen for current song response
+    socket.on('getCurrentSong', (data) => {
+        if (data && data.songUrl) {
+            playYouTubeSongShared(data.songUrl, data.updatedBy);
+        }
+    });
+
+    // Listen for song updates from other users
+    socket.on('songUpdated', (data) => {
+        console.log('Song updated by', data.updatedBy);
+        playYouTubeSongShared(data.songUrl, data.updatedBy);
+        
+        // Show notification
+        Toastify({
+            text: `${data.updatedBy} muutis laulu!`,
+            duration: 3000,
+            gravity: "top",
+            position: "right",
+            style: {
+                borderRadius: "10px",
+                background: "linear-gradient(to right, #667eea, #764ba2)",
+            }
+        }).showToast();
+    });
+}
 
 // Get user ID from cookie
 function getUserIdFromCookie() {
@@ -9,35 +83,11 @@ function getUserIdFromCookie() {
     return authCookie ? parseInt(authCookie) : null;
 }
 
-// Request current song when connected
-socket.on('connect', () => {
-    console.log('Connected to WebSocket');
-});
-
-// Listen for current song response
-socket.on('getCurrentSong', (data) => {
-    if (data && data.songUrl) {
-        playYouTubeSongShared(data.songUrl, data.updatedBy);
-    }
-});
-
-// Listen for song updates from other users
-socket.on('songUpdated', (data) => {
-    console.log('Song updated by', data.updatedBy);
-    playYouTubeSongShared(data.songUrl, data.updatedBy);
-    
-    // Show notification
-    Toastify({
-        text: `${data.updatedBy} muutis laulu!`,
-        duration: 3000,
-        gravity: "top",
-        position: "right",
-        style: {
-            borderRadius: "10px",
-            background: "linear-gradient(to right, #667eea, #764ba2)",
-        }
-    }).showToast();
-});
+// Get user name from page
+function getUserName() {
+    const userNameElement = document.getElementById('userName');
+    return userNameElement ? userNameElement.textContent : null;
+}
 
 // Extract YouTube video ID from various URL formats
 function extractYouTubeId(url) {
@@ -114,6 +164,20 @@ function updateSharedSong(songUrl) {
     if (!userId) {
         Toastify({
             text: "Palun logi sisse",
+            duration: 3000,
+            gravity: "top",
+            position: "right",
+            style: {
+                borderRadius: "10px",
+                background: "linear-gradient(to right, #ff5f6d, #ffc371)",
+            }
+        }).showToast();
+        return;
+    }
+    
+    if (!socket) {
+        Toastify({
+            text: "Ühendus puudub",
             duration: 3000,
             gravity: "top",
             position: "right",

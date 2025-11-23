@@ -282,3 +282,30 @@ i.hidden {
     background-color: rgb(135, 183, 254);
     border-color: rgb(135, 183, 254);
 }
+/* Online users styling */
+.online-user-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: linear-gradient(135deg, #da3b2c 0%, #dd4330 100%);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.online-user-badge:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.online-user-badge i {
+    font-size: 1.1em;
+}
+
+#onlineUsersContainer h5 {
+    margin-bottom: 0.5em;
+    color: #333;
+}
