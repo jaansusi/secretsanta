@@ -26,7 +26,7 @@ export class SongGateway {
     @SubscribeMessage('getCurrentSong')
     async handleGetCurrentSong(@ConnectedSocket() client: Socket) {
         const song = await this.songService.getCurrentSong();
-        return { songUrl: song?.songUrl, updatedBy: song?.updatedBy };
+        client.emit('getCurrentSong', { songUrl: song?.songUrl, updatedBy: song?.updatedBy });
     }
 
     @SubscribeMessage('updateSong')

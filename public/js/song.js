@@ -12,7 +12,6 @@ function getUserIdFromCookie() {
 // Request current song when connected
 socket.on('connect', () => {
     console.log('Connected to WebSocket');
-    socket.emit('getCurrentSong');
 });
 
 // Listen for current song response
