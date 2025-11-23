@@ -40,6 +40,7 @@ function submitCode() {
             document.getElementById('inputContainer').classList.add('hidden');
             document.getElementById('logoutContainer').classList.add('hidden');
             document.getElementById('nameContainer').classList.remove('hidden');
+            document.getElementById('musicNote').classList.remove('hidden');
             document.getElementById('songShareContainer').classList.remove('hidden');
             document.getElementById('userName').textContent = res.name;
             document.getElementById('gifteeNameDisplay').textContent = res.giftingTo;
@@ -55,6 +56,22 @@ function submitCode() {
             }
         }
     });
+}
+
+function toggleGifteeName() {
+    const gifteeDisplay = document.getElementById('gifteeNameDisplay');
+    const toggleButton = document.getElementById('toggleGifteeButton');
+    const icon = toggleButton.querySelector('i');
+    
+    if (gifteeDisplay.style.filter === 'blur(10px)') {
+        gifteeDisplay.style.filter = 'none';
+        icon.className = 'bi bi-eye-fill';
+        toggleButton.innerHTML = '<i class="bi bi-eye-fill"></i> Peida nimi';
+    } else {
+        gifteeDisplay.style.filter = 'blur(10px)';
+        icon.className = 'bi bi-eye-slash-fill';
+        toggleButton.innerHTML = '<i class="bi bi-eye-slash-fill"></i> Näita nime';
+    }
 }
 
 function isInWebView() {
