@@ -59,6 +59,25 @@ export class UserController {
         return this.userService.createUser(userDto);
     }
 
+    @Post('user/batch')
+    async batchUpdateUsers(@Body() body: { users: CreateUserDto[] }, @Req() request: Request) {
+        // Verify admin access
+        if (!request.cookies['santa_auth']) {
+            throw new Error('Unauthorized');
+        }
+        const requestUser = await this.userService.getById(parseInt(request.cookies['santa_auth']));
+        if (!requestUser || !requestUser.isAdmin) {
+            throw new Error('Unauthorized');
+        }
+
+        // Update all users
+        const results = await Promise.all(
+            body.users.map(userDto => this.userService.createUser(userDto))
+        );
+        
+        return { success: true, updated: results.length };
+    }
+
     @Delete('user/:id')
     async deleteUser(@Req() request: Request) {
         return this.userService.deleteUser(parseInt(request.params.id));

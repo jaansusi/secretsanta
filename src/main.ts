@@ -17,6 +17,11 @@ async function bootstrap() {
   app.setBaseViewsDir(join(__dirname, '..', 'views'));
   app.setViewEngine('hbs');
   hbs.registerPartials(join(__dirname, '..', 'views', 'partials'));
+  
+  // Register custom Handlebars helpers
+  hbs.registerHelper('json', function(context) {
+    return JSON.stringify(context);
+  });
 
   app.use(cookieParser(process.env.COOKIE_SECRET));
 

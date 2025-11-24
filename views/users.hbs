@@ -13,10 +13,17 @@
             {{> adminheader}}
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h2>User Management</h2>
-                <button class="btn btn-primary btn-sm" onclick="openUserEditModal();">Add New</button>
+                <div>
+                    <button class="btn btn-warning btn-sm me-2" id="massEditBtn" onclick="toggleMassEdit();">Mass Edit</button>
+                    <button class="btn btn-primary btn-sm" onclick="openUserEditModal();">Add New</button>
+                </div>
+            </div>
+            <div id="massEditActions" class="mb-3" style="display: none;">
+                <button class="btn btn-success btn-sm me-2" onclick="saveMassEdit();">Save All Changes</button>
+                <button class="btn btn-secondary btn-sm" onclick="cancelMassEdit();">Cancel</button>
             </div>
             <div class="table-responsive">
-                <table class="table table-striped admin-table">
+                <table class="table table-striped admin-table" id="usersTable">
                     <thead>
                         <tr>
                             <th>ID</th>
@@ -26,20 +33,20 @@
                             <th>Family</th>
                             <th>Admin</th>
                             <th>Last year</th>
-                            <th>Actions</th>
+                            <th class="actions-column">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {{#each users}}
-                        <tr>
+                        <tr data-user-id="{{id}}">
                             <td>{{id}}</td>
-                            <td>{{name}}</td>
-                            <td>{{email}}</td>
-                            <td>{{encryptionStrategy}}</td>
-                            <td>{{family.name}}</td>
-                            <td>{{#if this.isAdmin}}Yes{{else}}No{{/if}}</td>
-                            <td>{{lastYearGiftingToName}}</td>
-                            <td>
+                            <td class="editable-cell" data-field="name" data-value="{{name}}">{{name}}</td>
+                            <td class="editable-cell" data-field="email" data-value="{{email}}">{{email}}</td>
+                            <td class="editable-cell" data-field="encryptionStrategy" data-value="{{encryptionStrategy}}">{{encryptionStrategy}}</td>
+                            <td class="editable-cell" data-field="familyId" data-value="{{family.id}}">{{family.name}}</td>
+                            <td class="editable-cell" data-field="isAdmin" data-value="{{this.isAdmin}}">{{#if this.isAdmin}}Yes{{else}}No{{/if}}</td>
+                            <td class="editable-cell" data-field="lastYearGiftingToId" data-value="{{lastYearGiftingToId}}">{{lastYearGiftingToName}}</td>
+                            <td class="actions-column">
                                 <button class="btn btn-primary btn-sm"
                                     onclick="openUserEditModal('{{id}}');">Edit</button>
                                 <button class="btn btn-danger btn-sm" onclick="deleteUser({{id}})">Delete</button>
@@ -49,6 +56,14 @@
                     </tbody>
                 </table>
             </div>
+            <script>
+                // Store reference data for mass edit
+                window.massEditData = {
+                    strategies: {{{json strategies}}},
+                    families: {{{json families}}},
+                    users: {{{json usersForLastYear}}}
+                };
+            </script>
         </div>
 
         <!-- Edit User Modal -->
