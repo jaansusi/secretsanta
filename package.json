@@ -12,8 +12,10 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "infra:up": "docker-compose --env-file .env -f ./infra/compose_db.yaml up -d",
-    "infra:down": "docker-compose --env-file .env -f ./infra/compose_db.yaml down",
+    "infra:up": "docker compose --profile infra up -d",
+    "infra:down": "docker compose --profile infra down",
+    "app:up": "docker compose --profile app up -d",
+    "app:down": "docker compose --profile app down",
     "cdoc:up": "docker-compose --env-file .env -f ./infra/compose_cdoc.yaml up -d",
     "cdoc:down": "docker-compose --env-file .env -f ./infra/compose_cdoc.yaml down",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix"

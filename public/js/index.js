@@ -88,6 +88,16 @@ function isInWebView() {
 }
 
 window.addEventListener("load", (event) => {
+    // Check for 'kood' query parameter and auto-fill the code input
+    const urlParams = new URLSearchParams(window.location.search);
+    const codeParam = urlParams.get('kood');
+    if (codeParam) {
+        const userCodeInput = document.getElementById('userCode');
+        if (userCodeInput) {
+            userCodeInput.value = codeParam;
+        }
+    }
+
     const togglePassword = document.querySelector('#toggleUserCodeVisibility');
     if (togglePassword === null) return;
     togglePassword.addEventListener('click', function () {
