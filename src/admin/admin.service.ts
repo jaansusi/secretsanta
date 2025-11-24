@@ -152,4 +152,28 @@ export class AdminService {
         let dbHash = crypto.createHash("shake256", { outputLength: 4 }).update(hashData).digest('hex');
         return dbHash;
     }
+
+    public async generateUserMessages(): Promise<any[]> {
+        const users = await this.userService.findAll({ order: [['name', 'ASC']], include: [{ model: Family }] });
+        const baseUrl = process.env.HOST || 'http://localhost:3000';
+        
+        return users.map(user => {
+            const link = user.decryptionCode 
+                ? `${baseUrl}/?kood=${encodeURIComponent(user.decryptionCode)}`
+                : `${baseUrl}/`;
+            
+            const message = user.decryptionCode
+                ? `Tere ${user.name}! Selle aasta jõululoosi saad kätte siit: ${link}` : 
+                '';
+            
+            return {
+                name: user.name,
+                email: user.email,
+                link: link,
+                message: message,
+                hasCode: !!user.decryptionCode,
+                encryptionStrategy: user.encryptionStrategy
+            };
+        });
+    }
 }

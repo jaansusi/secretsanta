@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    {{> head pageTitle="Admin - User Messages"}}
+    {{> adminStyles}}
+    <style>
+        .messages-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .message-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .message-card h4 {
+            margin-top: 0;
+            color: #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .message-card .email {
+            color: #6c757d;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+        }
+        .message-box {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .link-box {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            word-wrap: break-word;
+        }
+        .link-box a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        .link-box a:hover {
+            text-decoration: underline;
+        }
+        .copy-btn {
+            padding: 5px 15px;
+            font-size: 0.85em;
+            margin-left: 10px;
+        }
+        .badge {
+            font-size: 0.75em;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: #17a2b8;
+            color: white;
+        }
+        .actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        .copy-success {
+            color: #28a745;
+            font-size: 0.9em;
+            display: none;
+            margin-left: 10px;
+        }
+        .no-code-warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <main role="main" class="container my-5">
+        {{#if isAdmin}}
+        <div class="messages-container">
+            {{> adminheader}}
+            
+            <div class="text-center mb-4">
+                <h2>User Messages & Links</h2>
+                <p class="text-muted">Copy and send these messages to each user to give them access to their Secret Santa assignment.</p>
+            </div>
+
+            {{#if messages}}
+                {{#each messages}}
+                <div class="message-card">
+                    <h4>
+                        <span>{{this.name}}</span>
+                        <span class="badge">{{this.encryptionStrategy}}</span>
+                    </h4>
+                    {{#if this.email}}
+                    <div class="email">{{this.email}}</div>
+                    {{/if}}
+                    
+                    {{#if this.hasCode}}
+                    <div>
+                        <strong>Link:</strong>
+                        <div class="link-box">
+                            <a href="{{this.link}}" target="_blank">{{this.link}}</a>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <strong>Message:</strong>
+                        <div class="message-box">{{this.message}}</div>
+                    </div>
+                    
+                    <div class="actions">
+                        <button class="btn btn-primary btn-sm copy-btn" onclick="copyToClipboard('{{this.link}}', this)">
+                            Copy Link
+                        </button>
+                        <button class="btn btn-secondary btn-sm copy-btn" onclick="copyToClipboard('{{this.message}}', this)">
+                            Copy Message
+                        </button>
+                        <span class="copy-success">✓ Copied!</span>
+                    </div>
+                    {{else}}
+                    <div class="no-code-warning">
+                        <strong>⚠ No decryption code available.</strong> This user uses {{this.encryptionStrategy}} encryption.
+                    </div>
+                    <div class="link-box">
+                        <a href="{{this.link}}" target="_blank">{{this.link}}</a>
+                    </div>
+                    {{/if}}
+                </div>
+                {{/each}}
+            {{else}}
+                <div class="alert alert-info">
+                    No users found. Please add users first.
+                </div>
+            {{/if}}
+        </div>
+        {{else}}
+        <div class="alert alert-warning mt-5" role="alert">
+            You do not have admin privileges.
+        </div>
+        {{/if}}
+    </main>
+
+    <script>
+        function copyToClipboard(text, button) {
+            navigator.clipboard.writeText(text).then(function() {
+                // Show success message
+                const successMsg = button.parentElement.querySelector('.copy-success');
+                successMsg.style.display = 'inline';
+                
+                // Hide after 2 seconds
+                setTimeout(function() {
+                    successMsg.style.display = 'none';
+                }, 2000);
+            }, function(err) {
+                console.error('Could not copy text: ', err);
+                alert('Failed to copy to clipboard');
+            });
+        }
+    </script>
+    {{> bootstrapScripts}}
+</body>
+
+</html>
