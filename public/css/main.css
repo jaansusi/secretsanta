@@ -276,6 +276,10 @@ i.hidden {
     gap: 20px;
 }
 
+.mobile-instructions {
+    display: inline-block;
+}
+
 @media (min-width: 1300px) {
     #songContainersWrapper {
         position: fixed;
@@ -287,6 +291,10 @@ i.hidden {
     
     #songContainersWrapper .white-container {
         margin: 0 !important;
+    }
+
+    .mobile-instructions {
+        display: none;
     }
 }
 
