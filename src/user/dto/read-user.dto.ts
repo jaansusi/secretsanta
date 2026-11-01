@@ -1,12 +1,12 @@
 import { ReadFamilyDto } from "src/family/dto/read-family.dto";
 import { User } from "../entities/user.entity";
+import { DossierSummaryDto } from "src/dossier/dto/dossier.dto";
 
 export class ReadUserDto {
     constructor(user: User) {
         this.id = user.id;
         this.name = user.name;
         this.email = user.email;
-        this.idCode = user.idCode;
         this.encryptionStrategy = user.encryptionStrategy;
         this.familyId = user.familyId;
         this.family = user.family ? new ReadFamilyDto(user.family) : undefined;
@@ -18,7 +18,6 @@ export class ReadUserDto {
     readonly id: number;
     readonly name: string;
     readonly email: string;
-    readonly idCode: string;
     readonly encryptionStrategy: string;
     readonly familyId: number;
     readonly family?: ReadFamilyDto;
@@ -26,4 +25,5 @@ export class ReadUserDto {
     readonly lastYearGiftingToId: number;
     readonly interestingFacts: string;
     lastYearGiftingToName?: string;
+    dossier?: DossierSummaryDto;
 }

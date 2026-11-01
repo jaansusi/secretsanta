@@ -1,11 +1,8 @@
-import { Module, Logger } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { EncryptionService } from './encryption.service';
-import { ConfigModule } from '@nestjs/config';
-
 
 @Module({
-  imports: [ConfigModule],
-  providers: [EncryptionService, Logger],
+  providers: [EncryptionService],
   exports: [EncryptionService],
 })
 export class EncryptionModule {}

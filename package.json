@@ -14,8 +14,6 @@
     "start:prod": "node dist/main",
     "infra:up": "docker-compose --env-file .env -f ./infra/compose_db.yaml up -d",
     "infra:down": "docker-compose --env-file .env -f ./infra/compose_db.yaml down",
-    "cdoc:up": "docker-compose --env-file .env -f ./infra/compose_cdoc.yaml up -d",
-    "cdoc:down": "docker-compose --env-file .env -f ./infra/compose_cdoc.yaml down",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix"
   },
   "dependencies": {
@@ -30,7 +28,6 @@
     "cookie-parser": "^1.4.7",
     "hbs": "^4.2.0",
     "nest-winston": "^1.10.2",
-    "openai": "^4.73.1",
     "passport": "^0.6.0",
     "passport-google-oauth20": "^2.0.0",
     "pg": "^8.13.0",

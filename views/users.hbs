@@ -4,6 +4,16 @@
 <head>
     {{> head pageTitle="Admin Panel - Users"}}
     {{> adminStyles}}
+    <style>
+        .dossier-flags i { color: #ccc; margin-right: 0.3em; }
+        .dossier-flags i.on { color: #198754; }
+        .dossier-fieldset { border: 1px solid #dee2e6; border-radius: 6px; padding: 12px; }
+        .dossier-fieldset legend { font-size: 1rem; width: auto; padding: 0 6px; }
+        .dossier-preview { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+        .dossier-preview img { max-height: 110px; max-width: 110px; border-radius: 4px; }
+        .dossier-preview audio { max-width: 260px; }
+        .modal .hidden { display: none !important; }
+    </style>
 </head>
 
 <body>
@@ -26,6 +36,7 @@
                             <th>Family</th>
                             <th>Admin</th>
                             <th>Last year</th>
+                            <th>Dossier</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -39,6 +50,11 @@
                             <td>{{family.name}}</td>
                             <td>{{#if this.isAdmin}}Yes{{else}}No{{/if}}</td>
                             <td>{{lastYearGiftingToName}}</td>
+                            <td class="dossier-flags">
+                                <i class="bi bi-card-text {{#if dossier.missionBrief}}on{{/if}}" title="Mission brief"></i>
+                                <i class="bi bi-image {{#if dossier.hasPhoto}}on{{/if}}" title="Photo"></i>
+                                <i class="bi bi-volume-up-fill {{#if dossier.hasAudio}}on{{/if}}" title="Santa audio"></i>
+                            </td>
                             <td>
                                 <button class="btn btn-primary btn-sm"
                                     onclick="openUserEditModal('{{id}}');">Edit</button>
@@ -77,11 +93,38 @@
                             <div class="mb-3">
                                 <label for="editUserInterestingFacts" class="form-label">Facts</label>
                                 <textarea rows="5" class="form-control" id="editUserInterestingFacts"></textarea>
+                                <div class="form-text">One fact per line. Shown in this person's dossier as "Teadaolevad faktid".</div>
                             </div>
-                            <div class="mb-3">
-                                <label for="editUserIdCode" class="form-label">ID Code</label>
-                                <input type="text" class="form-control" id="editUserIdCode">
-                            </div>
+                            <fieldset class="dossier-fieldset mb-3" id="dossierFieldset">
+                                <legend>Dossier (seen by this person's Santa)</legend>
+                                <div class="form-text mb-2" id="dossierNewUserNote">Save the user first, then reopen to edit the dossier.</div>
+                                <div class="mb-3">
+                                    <label for="editDossierCodename" class="form-label">Codename</label>
+                                    <input type="text" class="form-control" id="editDossierCodename" placeholder="e.g. Operatiiv Piparkook">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="editDossierBrief" class="form-label">Mission brief</label>
+                                    <textarea rows="4" class="form-control" id="editDossierBrief"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="editDossierPhoto" class="form-label">Photo</label>
+                                    <div class="dossier-preview" id="dossierPhotoPreview">
+                                        <img id="dossierPhotoPreviewImg" class="hidden" alt="Current photo">
+                                        <span class="text-muted" id="dossierPhotoNone">No photo</span>
+                                        <button type="button" class="btn btn-outline-danger btn-sm hidden" id="dossierPhotoRemove" onclick="removeDossierAsset('photo')">Remove</button>
+                                    </div>
+                                    <input type="file" class="form-control" id="editDossierPhoto" accept="image/*">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="editDossierAudio" class="form-label">Santa audio (mp3)</label>
+                                    <div class="dossier-preview" id="dossierAudioPreview">
+                                        <audio controls id="dossierAudioPreviewPlayer" class="hidden"></audio>
+                                        <span class="text-muted" id="dossierAudioNone">No audio</span>
+                                        <button type="button" class="btn btn-outline-danger btn-sm hidden" id="dossierAudioRemove" onclick="removeDossierAsset('audio')">Remove</button>
+                                    </div>
+                                    <input type="file" class="form-control" id="editDossierAudio" accept="audio/*">
+                                </div>
+                            </fieldset>
                             <div class="mb-3 form-check">
                                 <input type="checkbox" class="form-check-input" id="editUserIsAdmin" value="1">
                                 <label class="form-check-label" for="editUserIsAdmin">Is Admin</label>
