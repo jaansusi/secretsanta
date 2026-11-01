@@ -2,17 +2,20 @@ import { Body, Controller, Get, Post, Render, Req } from '@nestjs/common';
 import { Request } from 'express';
 import { UserService } from 'src/user/user.service';
 import { EncryptionService, EncryptionStrategy } from 'src/encryption/encryption.service';
+import { DossierService } from 'src/dossier/dossier.service';
 
 @Controller()
 export class HomeController {
   constructor(
     private readonly userService: UserService,
     private readonly encryptionService: EncryptionService,
+    private readonly dossierService: DossierService,
   ) { }
 
   @Get()
   @Render('index')
   async home(@Req() request: Request): Promise<any> {
+    const year = new Date().getFullYear();
     if (request.cookies['santa_auth']) {
       let user = await this.userService.findOne({ where: { id: request.cookies['santa_auth'] } });
       if (user) {
@@ -24,12 +27,8 @@ export class HomeController {
               prefill: user.decryptionCode,
               loggedIn: true,
               isAdmin: user.isAdmin,
-            };
-          case EncryptionStrategy.CDOC:
-            return {
-              encryptionWithCdoc: true,
-              loggedIn: true,
-              isAdmin: user.isAdmin,
+              userName: user.name,
+              year,
             };
         }
       }
@@ -44,12 +43,14 @@ export class HomeController {
           prefill: request.query.code,
           isAdmin: user.isAdmin,
           loggedIn: true,
+          userName: user.name,
+          year,
         };
       }
       else
-        return { encryptionWithCode: true, inputType: 'text', error: 'Vigane kood!' };
+        return { encryptionWithCode: true, inputType: 'text', error: 'Vigane kood!', year };
     }
-    return { encryptionWithCode: true, inputType: 'text', error: 'ASD' };
+    return { encryptionWithCode: true, inputType: 'text', year };
   }
 
   @Post('result')
@@ -69,28 +70,15 @@ export class HomeController {
     // To-do: logic based on users encryption strategy
     // To-do: code decryption should use input, not the db value
     try {
-      return { name: user.name, strategy: user.encryptionStrategy, giftingTo: await this.encryptionService.decryptGiftingTo(user) };
+      const giftingTo = await this.encryptionService.decryptGiftingTo(user);
+      const recipient = await this.userService.getByName(giftingTo);
+      const dossier = await this.dossierService.getRevealDossier(recipient);
+      return { name: user.name, strategy: user.encryptionStrategy, giftingTo, dossier };
     } catch (err) {
       console.error(err);
       // Return error and timestamp for debugging purposes
       return { error: 'Viga!' + new Date().toISOString() };
     }
-  }
-
-  @Get('cdoc')
-  async getUserCdoc(@Req() request: Request) {
-    if (request.cookies['santa_auth']) {
-      const id = request.cookies['santa_auth'];
-      const user = await this.userService.getById(id);
-      if (!user || user.encryptionStrategy !== EncryptionStrategy.CDOC || request.res === undefined) {
-        return null;
-      }
-      request.res.setHeader('Content-Disposition', 'attachment; filename="' + user.idCode + '.cdoc"');
-      request.res.setHeader('Content-Type', 'application/octet-stream');
-      request.res.setHeader('santa-cdoc-filename', user.idCode + '.cdoc');
-      return this.userService.getUserCdoc(user.idCode);
-    }
-    return null;
   }
 
   @Get('kiri')

@@ -35,9 +35,6 @@ export class User extends Model {
     @Column
     iv: string;
 
-    @Column
-    idCode: string;
-
     @Column({
         defaultValue: EncryptionStrategy.CODE,
         allowNull: false,

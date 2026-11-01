@@ -20,7 +20,33 @@ if (getCookie('santa_auth') !== null) {
     document.getElementById('logoutContainer').classList.remove('hidden');
 }
 
-function submitCode() {
+function showBriefingError(message) {
+    const errorBox = document.getElementById('briefingError');
+    errorBox.textContent = message;
+    errorBox.classList.remove('hidden');
+}
+
+function toggleCodeInput(event) {
+    event.preventDefault();
+    const group = document.getElementById('codeInputGroup');
+    const hidden = group.classList.toggle('hidden');
+    document.getElementById('showCodeLink').textContent = hidden ? 'Näita koodi' : 'Peida kood';
+}
+
+/** Called from the "accept mission" button: starts Santa's clip and fetches the name. */
+function acceptMission() {
+    const submit = document.getElementById('submit');
+    submit.disabled = true;
+    document.getElementById('briefingError').classList.add('hidden');
+
+    // Start the clip inside the click handler, otherwise mobile browsers block it.
+    const briefing = document.getElementById('briefingPlayer');
+    const source = briefingSource();
+    if (briefing.getAttribute('src') !== source) {
+        briefing.src = source;
+    }
+    const playAttempt = playBriefing();
+
     fetch("/result", {
         method: "POST",
         headers: {
@@ -31,24 +57,82 @@ function submitCode() {
             code: document.getElementById('userCode').value
         }),
     }).then(res => res.json()).then(res => {
-        let authContainer = document.getElementById('authContainer');
-        if (authContainer !== undefined && authContainer !== null && res.error === undefined)
-            authContainer.classList.add('hidden');
         if (res.error) {
-            document.getElementById('recipient').innerHTML = res.error;
-        } else {
-            document.getElementById('inputContainer').classList.add('hidden');
-            document.getElementById('logoutContainer').classList.add('hidden');
-            document.getElementById('chatContainer').classList.remove('hidden');
-            initializeChat(res);
-            if (!snowActive) {
-                snowActive = true;
-                createSnowFlakes();
-            }
-            if (!audioPlaying)
-                playPause();
+            briefing.pause();
+            showBriefingError(res.error);
+            submit.disabled = false;
+            return;
         }
+        const authContainer = document.getElementById('authContainer');
+        if (authContainer) authContainer.classList.add('hidden');
+        document.getElementById('inputContainer').classList.add('hidden');
+        document.getElementById('logoutContainer').classList.remove('hidden');
+
+        renderDossier(res);
+
+        if (!snowActive) {
+            snowActive = true;
+            createSnowFlakes();
+        }
+        const dossier = res.dossier || {};
+        if (dossier.hasAudio) {
+            document.getElementById('replayButton').classList.remove('hidden');
+            playAttempt.then(ok => {
+                // Autoplay was blocked: the replay button becomes the way to hear Santa.
+                if (!ok) document.getElementById('replayButton').classList.add('attention');
+            });
+        } else {
+            briefing.removeAttribute('src');
+            startMusic();
+        }
+    }).catch(() => {
+        showBriefingError('Midagi läks valesti, proovi uuesti.');
+        submit.disabled = false;
     });
+}
+
+function renderDossier(res) {
+    const dossier = res.dossier || {};
+    document.getElementById('dossierAgent').textContent = res.name;
+    document.getElementById('recipient').textContent = res.giftingTo;
+    document.getElementById('dossierNumber').textContent = dossierNumber(res.giftingTo);
+    document.getElementById('dossierCaption').textContent = res.giftingTo;
+
+    if (dossier.hasPhoto) {
+        const photo = document.getElementById('dossierPhoto');
+        photo.src = '/dossier/photo';
+        photo.alt = res.giftingTo;
+        photo.classList.remove('hidden');
+        document.getElementById('dossierPhotoPlaceholder').classList.add('hidden');
+    }
+    if (dossier.codename) {
+        document.getElementById('dossierCodename').textContent = dossier.codename;
+        document.getElementById('dossierCodenameRow').classList.remove('hidden');
+    }
+    if (dossier.missionBrief) {
+        document.getElementById('dossierBrief').textContent = dossier.missionBrief;
+        document.getElementById('dossierBriefRow').classList.remove('hidden');
+    }
+    if (dossier.facts && dossier.facts.length > 0) {
+        const list = document.getElementById('dossierFacts');
+        list.innerHTML = '';
+        dossier.facts.forEach(fact => {
+            const item = document.createElement('li');
+            item.textContent = fact;
+            list.appendChild(item);
+        });
+        document.getElementById('dossierFactsRow').classList.remove('hidden');
+    }
+    document.getElementById('dossier').classList.remove('hidden');
+}
+
+/** A stable, official-looking file number derived from the recipient's name. */
+function dossierNumber(name) {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = (hash * 31 + name.charCodeAt(i)) % 100000;
+    }
+    return new Date().getFullYear() + '-' + String(hash).padStart(5, '0');
 }
 
 function isInWebView() {
@@ -66,21 +150,31 @@ function isInWebView() {
 
 window.addEventListener("load", (event) => {
     const togglePassword = document.querySelector('#toggleUserCodeVisibility');
-    if (togglePassword === null) return;
-    togglePassword.addEventListener('click', function () {
-        const password = document.querySelector('#userCode');
+    if (togglePassword !== null) {
+        togglePassword.addEventListener('click', function () {
+            const password = document.querySelector('#userCode');
 
-        const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
-        password.setAttribute('type', type);
+            const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+            password.setAttribute('type', type);
 
-        this.querySelector('i').classList.toggle('bi-eye');
-        this.querySelector('i').classList.toggle('bi-eye-slash');
-    });
+            this.querySelector('i').classList.toggle('bi-eye');
+            this.querySelector('i').classList.toggle('bi-eye-slash');
+        });
+    }
 
-    document.getElementById('pageUrl').innerHTML = window.location.href;
-    if (isInWebView()) {
-        document.getElementById('googleAuthButton').classList.add('hidden');
-        document.getElementById('webViewWarning').classList.remove('hidden');
+    const pageUrl = document.getElementById('pageUrl');
+    if (pageUrl) {
+        pageUrl.innerHTML = window.location.href;
+        if (isInWebView()) {
+            document.getElementById('googleAuthButton').classList.add('hidden');
+            document.getElementById('webViewWarning').classList.remove('hidden');
+        }
+    }
+
+    // Let the clip buffer while the user reads the sound notice.
+    if (getCookie('santa_auth') !== null) {
+        const briefing = document.getElementById('briefingPlayer');
+        if (briefing) briefing.src = briefingSource();
     }
 });
 

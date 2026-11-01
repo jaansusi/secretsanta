@@ -4,7 +4,6 @@
 
 # Temp files
 /.db
-/.cdoc
 
 # Logs
 logs
@@ -40,6 +39,3 @@ lerna-debug.log*
 
 # Environment variables
 .env
-
-# CDOC
-.cdoc
