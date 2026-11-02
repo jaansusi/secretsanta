@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Post, Render, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Render, Req } from '@nestjs/common';
 import { Request } from 'express';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -49,8 +49,8 @@ export class UserController {
     }
 
     @Get('user/:id')
-    async getUser(@Req() request: Request): Promise<ReadUserDto> {
-        const user = await this.userService.getById(parseInt(request.params.id));
+    async getUser(@Param('id') id: string): Promise<ReadUserDto> {
+        const user = await this.userService.getById(parseInt(id));
         if (!user) {
             throw new Error('User not found');
         }
@@ -64,7 +64,7 @@ export class UserController {
     }
 
     @Delete('user/:id')
-    async deleteUser(@Req() request: Request) {
-        return this.userService.deleteUser(parseInt(request.params.id));
+    async deleteUser(@Param('id') id: string) {
+        return this.userService.deleteUser(parseInt(id));
     }
 }

@@ -39,3 +39,6 @@ lerna-debug.log*
 
 # Environment variables
 .env
+
+# TypeScript incremental build info
+*.tsbuildinfo

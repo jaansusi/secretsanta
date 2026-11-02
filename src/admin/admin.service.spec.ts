@@ -35,7 +35,7 @@ describe('AdminService', () => {
 
         it('no blocked connections', async () => {
             // Generate blocklist for each person in the list.
-            let blocklist = {};
+            const blocklist: Record<string, string[]> = {};
 
             const families = await familyService.findAll();
             for (let family of families) {

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Post, Render, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Render, Req } from '@nestjs/common';
 import { Request } from 'express';
 import { FamilyService } from './family.service';
 import { CreateFamilyDto } from './dto/create-family.dto';
@@ -39,7 +39,7 @@ export class FamilyController {
     }
 
     @Delete('family/:id')
-    async deleteFamily(@Req() request: Request) {
-        return this.familyService.deleteFamily(parseInt(request.params.id));
+    async deleteFamily(@Param('id') id: string) {
+        return this.familyService.deleteFamily(parseInt(id));
     }
 }

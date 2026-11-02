@@ -1,7 +1,7 @@
 # Secret Santa
 
 Secret Santa is a web application built with NestJS that allows users to participate in a Secret Santa gift exchange.
-This project uses a SQLite database and supports Docker for containerization.
+This project uses a PostgreSQL database and supports Docker for containerization.
 
 ## User management
 

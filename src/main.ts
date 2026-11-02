@@ -2,8 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { join } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import * as cookieParser from 'cookie-parser';
-import * as hbs from 'hbs';
+import cookieParser from 'cookie-parser';
+import hbs from 'hbs';
 import { WinstonLoggerService } from './logger/logger.service';
 
 

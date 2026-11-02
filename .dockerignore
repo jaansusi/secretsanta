@@ -1,6 +1,10 @@
+.git
+.github
 Dockerfile
 .dockerignore
 node_modules
 npm-debug.log
 dist
 .env
+infra
+README.md
