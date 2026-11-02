@@ -8,7 +8,7 @@ import { dataBaseConfig } from './database/database.config';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { EncryptionModule } from './encryption/encryption.module';
-import { ChatGPTModule } from './chatgpt/chatgpt.module';
+import { DossierModule } from './dossier/dossier.module';
 
 
 @Module({
@@ -20,7 +20,7 @@ import { ChatGPTModule } from './chatgpt/chatgpt.module';
     AdminModule,
     AuthModule,
     EncryptionModule,
-    ChatGPTModule,
+    DossierModule,
     SequelizeModule.forRootAsync(dataBaseConfig)
   ],
   controllers: [HomeController, AuthController],

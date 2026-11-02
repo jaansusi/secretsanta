@@ -1,32 +1,22 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { User } from 'src/user/entities/user.entity';
 import { AssignUserDto } from 'src/user/dto/assign-user.dto';
 import * as crypto from 'crypto';
-import * as fs from 'fs';
-import * as path from 'path';
-import { ConfigService } from '@nestjs/config';
 
 
 export enum EncryptionStrategy {
     CODE = 'code',
-    CDOC = 'cdoc',
     KEY = 'keypair',
 }
 
 
 @Injectable()
 export class EncryptionService {
-    constructor(
-        private readonly configService: ConfigService,
-        private readonly logger: Logger
-    ) { }
 
     public async encryptGiftingTo(user: User, giftingTo: string): Promise<AssignUserDto> {
         switch (user.encryptionStrategy) {
             case EncryptionStrategy.CODE:
                 return this.encryptWithCode(giftingTo, user.id.toString());
-            case EncryptionStrategy.CDOC:
-                return this.encryptWithCdoc(user.name, giftingTo, user.idCode);
             case EncryptionStrategy.KEY:
                 return this.encryptWithPublicKey(giftingTo);
             default:
@@ -41,8 +31,6 @@ export class EncryptionService {
                     throw new Error('Trying to decrypt using code strategy, user does not have decryption code!');
                 }
                 return this.decryptWithCode(user.giftingTo, user.decryptionCode, user.id.toString(), user.iv);
-            case EncryptionStrategy.CDOC:
-                throw new Error('CDOC decryption can not be done server-side');
             case EncryptionStrategy.KEY:
                 throw new Error('KEY decryption can not be done server-side');
             default:
@@ -67,23 +55,6 @@ export class EncryptionService {
         assignUserDto.decryptionCode = password;
         // Encrypt the giftingTo field with the decryption code
         assignUserDto.giftingTo = encrypted;
-        return assignUserDto;
-    }
-
-    private async encryptWithCdoc(fromName: string, toName: string, idCode: string): Promise<AssignUserDto> {
-        await fetch(this.configService.get<string>('CDOC_HOST') + ":" + this.configService.get<string>('CDOC_PORT') + "/cdoc", {
-            method: 'POST',
-            body: fromName + "&" + toName + "&" + idCode,
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }
-        }
-        ).then((result) => {
-            return result.text();
-        }).then((data) => {
-            fs.writeFileSync(path.join(this.configService.get<string>('CDOC_PATH') || '', idCode + ".cdoc"), data);
-            this.logger.log('CDOC file created');
-        });
-        let assignUserDto = new AssignUserDto();
-        assignUserDto.giftingTo = fromName + ".cdoc";
         return assignUserDto;
     }
 

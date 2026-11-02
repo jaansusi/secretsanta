@@ -1,13 +1,24 @@
 # Secret Santa
 
 Secret Santa is a web application built with NestJS that allows users to participate in a Secret Santa gift exchange.
-This project uses a SQLite database and supports Docker for containerization.
+This project uses a PostgreSQL database and supports Docker for containerization.
 
 ## User management
 
 .env file defines an e-mail that will always authenticate as an administrator.
 
 Administrators have access to Users and Families pages to manage participants.
+
+## Reveal flow and dossiers (2026)
+
+When a participant opens their link, the page first asks them to make sure their device sound works.
+After they accept the mission, Santa's pre-generated audio clip plays and a "classified file" slides in
+showing the recipient's name, photo, codename, mission brief and known facts.
+
+Each dossier belongs to the recipient (the person whose name is revealed) and is edited on the
+admin Users page: codename, mission brief, a photo and an audio clip (any `image/*` and `audio/*`,
+up to 20 MB each). Facts come from the user's existing "Facts" field, one per line. Assets are stored
+in the `dossier` database table and served only to the recipient's Santa.
 
 ## Source code
 
@@ -43,12 +54,7 @@ Source code is available in [Github - https://github.com/jaansusi/secretsanta](h
     docker-compose up -d
     ```
 
-3. Build and run the CDOC utility with Docker:
-    ```sh
-    yarn cdoc:up
-    ```
-
-4. The application will be available at [http://localhost](http://localhost)
+3. The application will be available at [http://localhost](http://localhost)
 
 ### Without Docker
 

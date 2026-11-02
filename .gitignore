@@ -4,7 +4,6 @@
 
 # Temp files
 /.db
-/.cdoc
 
 # Logs
 logs
@@ -41,5 +40,5 @@ lerna-debug.log*
 # Environment variables
 .env
 
-# CDOC
-.cdoc
+# TypeScript incremental build info
+*.tsbuildinfo

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Post, Render, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Render, Req } from '@nestjs/common';
 import { Request } from 'express';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -6,12 +6,14 @@ import { FamilyService } from 'src/family/family.service';
 import { Family } from 'src/family/entities/family.entity';
 import { EncryptionStrategy } from 'src/encryption/encryption.service';
 import { ReadUserDto } from './dto/read-user.dto';
+import { DossierService } from 'src/dossier/dossier.service';
 
 @Controller()
 export class UserController {
     constructor(
         private readonly userService: UserService,
         private readonly familyService: FamilyService,
+        private readonly dossierService: DossierService,
     ) { }
 
     @Get('admin/users')
@@ -23,7 +25,9 @@ export class UserController {
             if (requestUser && requestUser.isAdmin) {
                 const users = await this.userService.findAll({ order: [['name', 'ASC']], include: [{ model: Family }] });
                 let usersDto = users.map(user => new ReadUserDto(user));
+                const dossiers = await this.dossierService.getAllSummaries();
                 usersDto.forEach(user => {
+                    user.dossier = dossiers.get(user.id);
                     if (user.lastYearGiftingToId) {
                         let lastYearGiftingTo = users.find(u => u.id === user.lastYearGiftingToId);
                         if (lastYearGiftingTo) {
@@ -45,8 +49,8 @@ export class UserController {
     }
 
     @Get('user/:id')
-    async getUser(@Req() request: Request): Promise<ReadUserDto> {
-        const user = await this.userService.getById(parseInt(request.params.id));
+    async getUser(@Param('id') id: string): Promise<ReadUserDto> {
+        const user = await this.userService.getById(parseInt(id));
         if (!user) {
             throw new Error('User not found');
         }
@@ -60,7 +64,7 @@ export class UserController {
     }
 
     @Delete('user/:id')
-    async deleteUser(@Req() request: Request) {
-        return this.userService.deleteUser(parseInt(request.params.id));
+    async deleteUser(@Param('id') id: string) {
+        return this.userService.deleteUser(parseInt(id));
     }
 }

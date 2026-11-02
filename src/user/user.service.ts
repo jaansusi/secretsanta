@@ -3,10 +3,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { AssignUserDto } from './dto/assign-user.dto';
-import * as fs from 'fs';
-import * as path from 'path';
 // import { EncryptionService } from 'src/encryption/encryption.service';
-import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class UserService {
@@ -14,7 +11,6 @@ export class UserService {
         @InjectModel(User)
         private userRepository: typeof User,
         // private encryptionService: EncryptionService,
-        private configService: ConfigService,
     ) { }
 
     // to-do: deprecate "find" functions that pass through options, 
@@ -32,7 +28,6 @@ export class UserService {
             id: user.id ? user.id : undefined,
             name: user.name,
             email: user.email,
-            idCode: user.idCode,
             encryptionStrategy: user.encryptionStrategy,
             isAdmin: user.isAdmin,
             familyId: user.familyId,
@@ -76,16 +71,6 @@ export class UserService {
             return username.replace(/\./g, '') + '@gmail.com';
         });
         return email;
-    }
-
-    public async getUserCdoc(idCode: string): Promise<string> {
-        try {
-            const file = fs.readFileSync(path.join(this.configService.get('CDOC_PATH') || '', idCode + '.cdoc'), 'utf8');
-            return file;
-        } catch (err) {
-            console.error(err);
-            return '';
-        }
     }
 
     public async cleanGiftingToForAll(): Promise<void> {

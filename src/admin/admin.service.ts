@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { User } from 'src/user/entities/user.entity';
-import { EncryptionService, EncryptionStrategy } from 'src/encryption/encryption.service';
+import { EncryptionService } from 'src/encryption/encryption.service';
 import { UserService } from 'src/user/user.service';
 import { FamilyService } from 'src/family/family.service';
 import { Family } from 'src/family/entities/family.entity';
@@ -105,7 +105,7 @@ export class AdminService {
         let designatedSantas = users.map(x => this.encriptionService.decryptGiftingTo(x)).sort();
         let allPeopleHaveSomeoneToGiftTo = true;
         for (let user of users) {
-            if (!user.giftingTo && (user.encryptionStrategy !== EncryptionStrategy.CDOC)) {
+            if (!user.giftingTo) {
                 allPeopleHaveSomeoneToGiftTo = false
             }
         }
