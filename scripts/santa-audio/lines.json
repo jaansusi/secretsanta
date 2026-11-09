@@ -1,0 +1,34 @@
+{
+  "_readme": [
+    "Santa's briefing is three clips played back to back: one intro, one name line, one outro.",
+    "Intro and outro are picked per Santa at play time; the name line is generated once per participant.",
+    "{name} is replaced with the participant's name in the nominative, so no declension is needed.",
+    "Square-bracket tags ([whispers], [laughs], [clears throat]) are ElevenLabs audio tags, not spoken."
+  ],
+  "intros": [
+    "Ho-ho-hoo! Tere, agent. Su missioon, kui sa peaksid selle vastu võtma, on järgmine.",
+    "[whispers] Agent... kas sa oled üksi? Hea. Kuula hoolega, ma ütlen seda ainult ühe korra.",
+    "Ho-ho-hoo! Põhjapoolus kutsub. Istu maha, see on tähtis. Päkapikud on toimiku kokku pannud.",
+    "Tere, agent. Jõuluvana siin. Jah, see päris. Mul on sinu jaoks ülesanne ja keeldumine ei ole kahjuks võimalik.",
+    "[clears throat] See sõnum on ainult sinu kõrvadele. Agentuur on sulle valinud ülesande.",
+    "Ho-ho-hoo! Lõpuks ometi. Me oleme sind oodanud, agent. Toimik on laual, kuula tähelepanelikult.",
+    "Tere õhtust, agent. Lumi on maas, põhjapõdrad on söödetud ja sinu ülesanne on valmis.",
+    "[whispers] Ära pane tuld põlema. Ära räägi kellelegi. Kuula lihtsalt. Sinu missioon on järgmine."
+  ],
+  "nameLines": [
+    "Sinu sihtmärk on {name}.",
+    "Toimik kannab nime {name}. Jäta see meelde ja unusta siis, et sa seda kuulsid.",
+    "Isik, kelle jõulud nüüd sinust sõltuvad, on {name}.",
+    "Sihtmärgi nimi on {name}. Kordan: {name}."
+  ],
+  "outros": [
+    "Sinu ülesanne on leida talle kingitus, mis paneb silmad särama. Kui sind tabatakse, eitab agentuur igasugust seost sinuga. See sõnum hävib ise viie sekundi pärast. Edu, agent. Ho-ho-hoo!",
+    "Uuri välja, mida ta tegelikult tahab, ja hangi see. Vaikselt. Ja ära küsi temalt otse, see on algaja viga. Jõuluvana lõpetab. Ho-ho-hoo!",
+    "Pakk peab olema puu all jõuluõhtuks ja sihtmärk ei tohi midagi aimata. [whispers] Ja agent... ära räägi sellest kellelegi. Mitte kellelegi. Side lõpp.",
+    "Hoiatus: sihtmärk on kaval ja hea nuuskija. Hoia pakk peidus. See toimik hävib ise viie sekundi pärast. Loodetavasti. Head jahti, agent!",
+    "Selle inimese jõulud sõltuvad nüüd sinust. Ära vea mind alt. Pea meeles, ükski päkapikk ei tule sulle appi, kui sa vahele jääd. [laughs] Ho-ho-hoo! Me kohtume kuuse all.",
+    "Eelarve on mõistlik, põhjapõdrad ei ole seekord läbiräägitavad. Kui see sõnum lõpeb, on toimik ametlikult salastatud. Häid jõule, agent. Jõuluvana lõpetab.",
+    "Jälgi sihtmärki, kogu infot ja hangi õige kingitus. Ära jää vahele. See salvestis kustutab end viie sekundi pärast. Nali. Aga hoia saladust. Edu, agent!",
+    "Leia kingitus, pakenda see ja toimeta kohale. Keegi ei tohi näha. Ja kui keegi küsib, siis seda vestlust ei toimunud. Ho-ho-hoo! Side lõpp."
+  ]
+}

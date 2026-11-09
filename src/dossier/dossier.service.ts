@@ -6,6 +6,7 @@ import { DossierAsset, DossierSummaryDto, RevealDossierDto, SaveDossierDto } fro
 import { User } from 'src/user/entities/user.entity';
 import { UserService } from 'src/user/user.service';
 import { EncryptionService, EncryptionStrategy } from 'src/encryption/encryption.service';
+import { readSantaClipLibrary } from './santa-clips';
 
 @Injectable()
 export class DossierService {
@@ -122,7 +123,14 @@ export class DossierService {
             facts,
             hasPhoto: summary?.hasPhoto ?? false,
             hasAudio: summary?.hasAudio ?? false,
+            clips: readSantaClipLibrary(recipient?.name),
         };
+    }
+
+    /** How many shared intro/outro clips exist; the page needs this before the recipient is known. */
+    public getClipCounts(): { intros: number; outros: number } {
+        const library = readSantaClipLibrary();
+        return { intros: library.intros, outros: library.outros };
     }
 
     private toSummary(userId: number, row: any): DossierSummaryDto {

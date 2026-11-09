@@ -33,19 +33,64 @@ function toggleCodeInput(event) {
     document.getElementById('showCodeLink').textContent = hidden ? 'Näita koodi' : 'Peida kood';
 }
 
-/** Called from the "accept mission" button: starts Santa's clip and fetches the name. */
+const CLIP_ROTATION_KEY = 'santaClipRotation';
+
+/** True when pre-generated intro/outro clips are deployed (counts are rendered into the page). */
+function hasClipLibrary() {
+    const library = window.SANTA_CLIPS;
+    return !!library && library.intros > 0 && library.outros > 0;
+}
+
+function clipUrl(kind, index) {
+    return '/audio/santa/' + kind + '-' + String(index + 1).padStart(2, '0') + '.mp3';
+}
+
+function readClipRotation() {
+    try {
+        return parseInt(localStorage.getItem(CLIP_ROTATION_KEY) || '0', 10) || 0;
+    } catch (e) {
+        // No storage (private mode etc.): still vary between visits.
+        return Math.floor(Math.random() * 1000);
+    }
+}
+
+/**
+ * Which intro, name-line variant and outro this visit gets. A counter in localStorage moves on
+ * every accepted mission (advanceClipRotation), so a refresh gives a different combination.
+ * The outro and name line also shift by one per full cycle through the intros, so the same
+ * intro is not always paired with the same outro.
+ */
+function clipRotation() {
+    const library = window.SANTA_CLIPS || { intros: 0, outros: 0 };
+    const counter = readClipRotation();
+    const intros = Math.max(library.intros, 1);
+    const cycle = Math.floor(counter / intros);
+    return {
+        intro: counter % intros,
+        outro: (counter + 1 + cycle) % Math.max(library.outros, 1),
+        name: counter + cycle,  // reduced modulo the recipient's clip count once that is known
+    };
+}
+
+function advanceClipRotation() {
+    try {
+        localStorage.setItem(CLIP_ROTATION_KEY, String(readClipRotation() + 1));
+    } catch (e) { /* storage unavailable, rotation is random anyway */ }
+}
+
+/** Called from the "accept mission" button: starts Santa's briefing and fetches the name. */
 function acceptMission() {
     const submit = document.getElementById('submit');
     submit.disabled = true;
     document.getElementById('briefingError').classList.add('hidden');
 
-    // Start the clip inside the click handler, otherwise mobile browsers block it.
+    // Start the first clip inside the click handler, otherwise mobile browsers block it.
+    // With a clip library the intro starts now and the name line + outro are queued once we know the recipient.
     const briefing = document.getElementById('briefingPlayer');
-    const source = briefingSource();
-    if (briefing.getAttribute('src') !== source) {
-        briefing.src = source;
-    }
-    const playAttempt = playBriefing();
+    const useClips = hasClipLibrary();
+    const rotation = clipRotation();
+    const playAttempt = startBriefing([useClips ? clipUrl('intro', rotation.intro) : briefingSource()]);
+    if (useClips) advanceClipRotation();
 
     fetch("/result", {
         method: "POST",
@@ -75,16 +120,24 @@ function acceptMission() {
             createSnowFlakes();
         }
         const dossier = res.dossier || {};
-        if (dossier.hasAudio) {
-            document.getElementById('replayButton').classList.remove('hidden');
-            playAttempt.then(ok => {
-                // Autoplay was blocked: the replay button becomes the way to hear Santa.
-                if (!ok) document.getElementById('replayButton').classList.add('attention');
-            });
-        } else {
+        const nameClips = (dossier.clips && dossier.clips.names) || [];
+        if (useClips) {
+            if (nameClips.length > 0) {
+                queueBriefingClips([nameClips[rotation.name % nameClips.length], clipUrl('outro', rotation.outro)]);
+            } else if (dossier.hasAudio) {
+                // No generated name clip for this recipient yet: the hand-made message follows the intro.
+                queueBriefingClips([briefingSource()]);
+            }
+        } else if (!dossier.hasAudio) {
             briefing.removeAttribute('src');
             startMusic();
+            return;
         }
+        document.getElementById('replayButton').classList.remove('hidden');
+        playAttempt.then(ok => {
+            // Autoplay was blocked: the replay button becomes the way to hear Santa.
+            if (!ok) document.getElementById('replayButton').classList.add('attention');
+        });
     }).catch(() => {
         showBriefingError('Midagi läks valesti, proovi uuesti.');
         submit.disabled = false;
@@ -94,9 +147,9 @@ function acceptMission() {
 function renderDossier(res) {
     const dossier = res.dossier || {};
     document.getElementById('dossierAgent').textContent = res.name;
-    document.getElementById('recipient').textContent = res.giftingTo;
-    document.getElementById('dossierNumber').textContent = dossierNumber(res.giftingTo);
-    document.getElementById('dossierCaption').textContent = res.giftingTo;
+    document.getElementById('recipient').textContent = formatTargetName(res.giftingTo);
+    const code = (document.getElementById('userCode').value || '').trim();
+    document.getElementById('dossierNumber').textContent = dossierNumber(res.giftingTo, code);
 
     if (dossier.hasPhoto) {
         const photo = document.getElementById('dossierPhoto');
@@ -113,6 +166,13 @@ function renderDossier(res) {
         document.getElementById('dossierBrief').textContent = dossier.missionBrief;
         document.getElementById('dossierBriefRow').classList.remove('hidden');
     }
+    const stats = document.getElementById('dossierStats');
+    stats.innerHTML = '';
+    outrageousFacts(res.giftingTo, 3).forEach(fact => {
+        const item = document.createElement('li');
+        item.textContent = fact;
+        stats.appendChild(item);
+    });
     if (dossier.facts && dossier.facts.length > 0) {
         const list = document.getElementById('dossierFacts');
         list.innerHTML = '';
@@ -126,13 +186,30 @@ function renderDossier(res) {
     document.getElementById('dossier').classList.remove('hidden');
 }
 
-/** A stable, official-looking file number derived from the recipient's name. */
-function dossierNumber(name) {
+/** Folds a string into a fixed number of digits, stable for the same input. */
+function digitsOf(text, length) {
     let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-        hash = (hash * 31 + name.charCodeAt(i)) % 100000;
+    for (let i = 0; i < text.length; i++) {
+        hash = (hash * 31 + text.charCodeAt(i) * (i + 1)) % Math.pow(10, length);
     }
-    return new Date().getFullYear() + '-' + String(hash).padStart(5, '0');
+    return String(hash).padStart(length, '0');
+}
+
+/**
+ * A stable, official-looking file number: year, two groups from the recipient's
+ * name, and a final group from the agent's identity code when one is known.
+ */
+function dossierNumber(name, code) {
+    let number = new Date().getFullYear() + '-' + digitsOf(name, 5) + '-' + digitsOf(name.split('').reverse().join(''), 3);
+    if (code) number += '-' + digitsOf(code, 4);
+    return number;
+}
+
+/** "Mari Maasikas" becomes "Mari MAASIKAS", the way a case file lists a surname. */
+function formatTargetName(name) {
+    const parts = name.trim().split(/\s+/);
+    parts[parts.length - 1] = parts[parts.length - 1].toUpperCase();
+    return parts.join(' ');
 }
 
 function isInWebView() {
@@ -171,10 +248,10 @@ window.addEventListener("load", (event) => {
         }
     }
 
-    // Let the clip buffer while the user reads the sound notice.
+    // Let the first clip buffer while the user reads the sound notice.
     if (getCookie('santa_auth') !== null) {
         const briefing = document.getElementById('briefingPlayer');
-        if (briefing) briefing.src = briefingSource();
+        if (briefing) briefing.src = hasClipLibrary() ? clipUrl('intro', clipRotation().intro) : briefingSource();
     }
 });
 

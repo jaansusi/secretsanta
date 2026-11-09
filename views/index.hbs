@@ -27,12 +27,10 @@
       {{#if encryptionWithCode}}
       <div class="briefing" id="inputContainer">
         {{#if loggedIn}}
-        <div class="briefing-kicker"><i class="bi bi-envelope-paper-fill"></i> Sissetulev sõnum jõuluvanalt</div>
-        <h2 class="briefing-title">Tere, {{userName}}!</h2>
-        <div class="briefing-notice">
-          <i class="bi bi-volume-up-fill"></i>
-          <span>Parima kogemuse jaoks veendu, et su seadme heli töötab.</span>
-        </div>
+        <div class="briefing-greeting">Tere, {{userName}}!</div>
+        <h2 class="briefing-title briefing-headline">
+          <i class="bi bi-envelope-paper-fill"></i> Uus missioon jõuluvanalt
+        </h2>
         {{else}}
         <h2 class="briefing-title">Sisesta oma kood</h2>
         {{/if}}
@@ -43,12 +41,39 @@
           </button>
         </div>
         <div class="briefing-error {{#unless error}}hidden{{/unless}}" id="briefingError">{{error}}</div>
-        <div>
+        <div class="briefing-action">
           <button class="button" id="submit" onclick="acceptMission()">
-            {{#if loggedIn}}Võta missioon vastu{{else}}Kuva nimi{{/if}}
+            {{#if loggedIn}}Ava infopakk{{else}}Sisene{{/if}}
           </button>
         </div>
         {{#if loggedIn}}
+        <div class="briefing-notice">
+          <svg class="briefing-elf" viewBox="0 0 64 64" aria-hidden="true">
+            <!-- ears -->
+            <path d="M17 38 L4 32 L17 46 Z" fill="#f5c9a0" stroke="#d9a070" stroke-width="1.5" stroke-linejoin="round"/>
+            <path d="M47 38 L60 32 L47 46 Z" fill="#f5c9a0" stroke="#d9a070" stroke-width="1.5" stroke-linejoin="round"/>
+            <!-- face -->
+            <circle cx="32" cy="40" r="17" fill="#f5c9a0" stroke="#d9a070" stroke-width="1.5"/>
+            <!-- cheeks -->
+            <circle cx="21" cy="46" r="3" fill="#f4a3a3" opacity="0.7"/>
+            <circle cx="43" cy="46" r="3" fill="#f4a3a3" opacity="0.7"/>
+            <!-- eyes: one open, one winking -->
+            <circle cx="25" cy="40" r="2.2" fill="#2b2420"/>
+            <path d="M37 40 Q40 37 43 40" fill="none" stroke="#2b2420" stroke-width="2" stroke-linecap="round"/>
+            <!-- nose -->
+            <path d="M30 45 Q32 48 34 45" fill="none" stroke="#d9a070" stroke-width="1.5" stroke-linecap="round"/>
+            <!-- mouth -->
+            <path d="M28 51 Q32 53 36 51" fill="none" stroke="#2b2420" stroke-width="2" stroke-linecap="round"/>
+            <!-- hat -->
+            <path d="M12 33 C12 14 28 4 50 9 C44 12 47 24 52 33 Z" fill="#2f8f46" stroke="#1f6b32" stroke-width="1.5" stroke-linejoin="round"/>
+            <rect x="10" y="30" width="44" height="6" rx="3" fill="#fff" stroke="#d9a070" stroke-width="1.2"/>
+            <circle cx="51" cy="9" r="4" fill="#d8322a" stroke="#a61715" stroke-width="1.2"/>
+            <!-- shushing finger across the lips -->
+            <path d="M33 60 L33 50" stroke="#d9a070" stroke-width="6.5" stroke-linecap="round"/>
+            <path d="M33 60 L33 50" stroke="#f5c9a0" stroke-width="4.5" stroke-linecap="round"/>
+          </svg>
+          <div class="briefing-bubble">Psst, vaata, et heli töötaks!</div>
+        </div>
         <div class="briefing-small">
           <a href="#" id="showCodeLink" onclick="toggleCodeInput(event)">Näita koodi</a>
         </div>
@@ -115,9 +140,8 @@
                 <img id="dossierPhoto" class="hidden" alt="">
                 <div class="polaroid-placeholder" id="dossierPhotoPlaceholder">
                   <i class="bi bi-person-fill"></i>
-                  <span>Foto puudub</span>
+                  <span class="polaroid-stamp">pildistamiskatsed ebaõnnestusid</span>
                 </div>
-                <div class="polaroid-caption" id="dossierCaption"></div>
               </div>
               <div class="dossier-fields">
                 <div class="dossier-line hidden" id="dossierCodenameRow">
@@ -126,6 +150,10 @@
                 <div class="dossier-section hidden" id="dossierBriefRow">
                   <div class="label">Missioon:</div>
                   <p id="dossierBrief"></p>
+                </div>
+                <div class="dossier-section" id="dossierStatsRow">
+                  <div class="label">Agentuuri andmed:</div>
+                  <ul class="dossier-stats" id="dossierStats"></ul>
                 </div>
                 <div class="dossier-section hidden" id="dossierFactsRow">
                   <div class="label">Teadaolevad faktid:</div>
@@ -161,8 +189,10 @@
     </main>
   </div>
 
+  {{#if santaClips}}<script>window.SANTA_CLIPS = { intros: {{santaClips.intros}}, outros: {{santaClips.outros}} };</script>{{/if}}
   <script src="/js/audio.js"></script>
   <script src="/js/snow.js"></script>
+  <script src="/js/dossier-facts.js"></script>
   <script src="/js/index.js"></script>
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
 </body>

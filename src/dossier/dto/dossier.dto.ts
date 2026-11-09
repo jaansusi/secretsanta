@@ -1,3 +1,5 @@
+import { SantaClipLibrary } from '../santa-clips';
+
 /** Text fields editable by the admin. */
 export class SaveDossierDto {
     codename?: string;
@@ -19,7 +21,10 @@ export class RevealDossierDto {
     missionBrief: string;
     facts: string[];
     hasPhoto: boolean;
+    /** A hand-made clip stored in the dossier table, played when no generated name clip exists. */
     hasAudio: boolean;
+    /** Pre-generated clips: how many intros/outros exist and this recipient's name clips. */
+    clips: SantaClipLibrary;
 }
 
 export interface DossierAsset {

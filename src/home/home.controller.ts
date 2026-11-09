@@ -16,6 +16,8 @@ export class HomeController {
   @Render('index')
   async home(@Req() request: Request): Promise<any> {
     const year = new Date().getFullYear();
+    // Lets the page start an intro clip inside the click handler, before the recipient is known.
+    const santaClips = this.dossierService.getClipCounts();
     if (request.cookies['santa_auth']) {
       let user = await this.userService.findOne({ where: { id: request.cookies['santa_auth'] } });
       if (user) {
@@ -29,6 +31,7 @@ export class HomeController {
               isAdmin: user.isAdmin,
               userName: user.name,
               year,
+              santaClips,
             };
         }
       }
@@ -45,12 +48,13 @@ export class HomeController {
           loggedIn: true,
           userName: user.name,
           year,
+          santaClips,
         };
       }
       else
-        return { encryptionWithCode: true, inputType: 'text', error: 'Vigane kood!', year };
+        return { encryptionWithCode: true, inputType: 'text', error: 'Vigane kood!', year, santaClips };
     }
-    return { encryptionWithCode: true, inputType: 'text', year };
+    return { encryptionWithCode: true, inputType: 'text', year, santaClips };
   }
 
   @Post('result')
