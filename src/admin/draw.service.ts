@@ -166,7 +166,8 @@ export class DrawService {
                 const santa = byId.get(cycle[i].id)!;
                 const recipient = cycle[(i + 1) % cycle.length];
                 const assignment = await this.encryptionService.encryptGiftingTo(santa, recipient.name);
-                if (process.env.NODE_ENV === 'development') {
+                // Plaintext copy for local debugging only; needs an explicit opt-in (see .env.template).
+                if (process.env.NODE_ENV === 'development' && process.env.STORE_DEBUG_ASSIGNMENTS === 'true') {
                     assignment.giftingToDebug = recipient.name;
                 }
                 await this.userRepository.update(assignment, { where: { id: santa.id }, transaction });

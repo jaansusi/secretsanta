@@ -3,19 +3,18 @@
 
 <head>
   {{> head}}
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
-    integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Special+Elite&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="/css/auth.css">
   <link rel="stylesheet" href="/css/dossier.css">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+  <link href="/vendor/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
+  <link rel="stylesheet" type="text/css" href="/vendor/toastify/toastify.css">
 </head>
 
-<body>
+<body data-logged-in="{{#if loggedIn}}true{{else}}false{{/if}}" data-santa-clips="{{santaClips}}">
   <canvas id="snow"></canvas>
   <div class="bg">
     {{> hoverIcons}}
@@ -42,7 +41,7 @@
         </div>
         <div class="briefing-error {{#unless error}}hidden{{/unless}}" id="briefingError">{{error}}</div>
         <div class="briefing-action">
-          <button class="button" id="submit" onclick="acceptMission()">
+          <button class="button" id="submit">
             {{#if loggedIn}}Ava infopakk{{else}}Sisene{{/if}}
           </button>
         </div>
@@ -75,7 +74,7 @@
           <div class="briefing-bubble">Psst, vaata, et heli töötaks!</div>
         </div>
         <div class="briefing-small">
-          <a href="#" id="showCodeLink" onclick="toggleCodeInput(event)">Näita koodi</a>
+          <a href="#" id="showCodeLink">Näita koodi</a>
         </div>
         {{/if}}
       </div>
@@ -83,7 +82,7 @@
 
       {{#unless loggedIn}}
       <div id="authContainer" class="authContainer">
-        <button id="googleAuthButton" class="gsi-material-button" onclick="location.href = '/auth/google'">
+        <button id="googleAuthButton" class="gsi-material-button" type="button">
           <div class="gsi-material-button-state"></div>
           <div class="gsi-material-button-content-wrapper">
             <div class="gsi-material-button-icon">
@@ -111,7 +110,7 @@
       </div>
       <div id="webViewWarning" class="hidden">
         Messengerist otse avades ei saa kasutada Google autentimist. Kopeeri link ja ava brauseris.<br />
-        <div id="copyContainer" onclick="copyTextToClipboard(window.location.href)">
+        <div id="copyContainer">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-copy"
             viewBox="0 0 16 16">
             <path fill-rule="evenodd"
@@ -163,7 +162,7 @@
             </div>
             <div class="dossier-footer">
               <div class="speaking hidden" id="speakingIndicator"><i class="bi bi-soundwave"></i> Jõuluvana räägib…</div>
-              <button class="dossier-replay hidden" id="replayButton" onclick="playBriefing()">
+              <button class="dossier-replay hidden" id="replayButton">
                 <i class="bi bi-volume-up-fill"></i> Kuula jõuluvana
               </button>
               <div class="dossier-disclaimer">See toimik hävib ise 5 sekundi pärast. Nali. Hoia alles.</div>
@@ -178,23 +177,24 @@
       </audio>
 
       <div id="logoutContainer" class="logoutContainer hidden">
-        <a href="/auth/logout">
+        <form method="post" action="/auth/logout">
+        <button type="submit" class="logout-button" aria-label="Logi välja">
           <svg xmlns="http://www.w3.org/2000/svg" height="2em"
             viewBox="0 0 512 512"><!--! Font Awesome Free 6.4.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license (Commercial License) Copyright 2023 Fonticons, Inc. -->
             <path
               d="M377.9 105.9L500.7 228.7c7.2 7.2 11.3 17.1 11.3 27.3s-4.1 20.1-11.3 27.3L377.9 406.1c-6.4 6.4-15 9.9-24 9.9c-18.7 0-33.9-15.2-33.9-33.9l0-62.1-128 0c-17.7 0-32-14.3-32-32l0-64c0-17.7 14.3-32 32-32l128 0 0-62.1c0-18.7 15.2-33.9 33.9-33.9c9 0 17.6 3.6 24 9.9zM160 96L96 96c-17.7 0-32 14.3-32 32l0 256c0 17.7 14.3 32 32 32l64 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-64 0c-53 0-96-43-96-96L0 128C0 75 43 32 96 32l64 0c17.7 0 32 14.3 32 32s-14.3 32-32 32z" />
           </svg>
-        </a>
+        </button>
+        </form>
       </div>
     </main>
   </div>
 
-  {{#if santaClips}}<script>window.SANTA_CLIPS = {{{santaClips}}};</script>{{/if}}
   <script src="/js/track.js"></script>
   <script src="/js/audio.js"></script>
   <script src="/js/snow.js"></script>
   <script src="/js/index.js"></script>
-  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <script src="/vendor/toastify/toastify.js"></script>
 </body>
 
 </html>

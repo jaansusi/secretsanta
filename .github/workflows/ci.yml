@@ -1,0 +1,50 @@
+# Build, test and dependency checks for every pull request and push to master.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          # Same major as the Dockerfile. Jest needs >= 24.9 to load the ESM-only NestJS 12.
+          node-version: 26
+
+      # Node >= 25 no longer bundles corepack/yarn.
+      - run: npm install --global --ignore-scripts yarn@1.22.22
+
+      - run: yarn install --frozen-lockfile --ignore-scripts
+
+      - run: yarn build
+
+      - run: yarn test
+
+      # Fails on any known vulnerability in the packages that ship in the image.
+      # Dev-only tooling advisories are reviewed separately (see docs/SECURITY-AUDIT.md).
+      - name: Audit production dependencies
+        run: yarn audit --groups dependencies --level low
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      # Blocks PRs that introduce dependencies with known moderate+ vulnerabilities.
+      - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+        with:
+          fail-on-severity: moderate

@@ -8,3 +8,9 @@ dist
 .env
 infra
 README.md
+.env.*
+!.env.template
+coverage
+*.log
+.vscode
+.idea
