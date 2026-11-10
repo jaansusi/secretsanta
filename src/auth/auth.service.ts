@@ -26,6 +26,7 @@ export class AuthService {
         let dto = new CreateUserDto();
         dto.isAdmin = true;
         await this.userService.updateUser(existingUser.id, dto);
+        existingUser.isAdmin = true;
       }
       return existingUser;
     }

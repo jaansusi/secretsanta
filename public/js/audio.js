@@ -5,6 +5,9 @@ const MUSIC_DUCKED_VOLUME = 0.05;
 let audioPlaying = false;
 let briefingQueue = [];
 let lastBriefingSequence = [];
+// Set once the server has told us which clips follow the intro, so "finished" means the whole briefing.
+let briefingFinalized = false;
+let briefingCompleteReported = false;
 
 function startMusic() {
     const music = document.getElementById('player');
@@ -42,6 +45,7 @@ function queueBriefingClips(clips) {
 
 /** Replays the whole last briefing from the start (replay button). */
 function playBriefing() {
+    if (typeof trackEvent === 'function') trackEvent('briefing_replay');
     return startBriefing(lastBriefingSequence.length > 0 ? lastBriefingSequence : [briefingSource()]);
 }
 
@@ -78,6 +82,10 @@ window.addEventListener('load', () => {
         show(false);
         duckMusic(false);
         startMusic();
+        if (briefingFinalized && !briefingCompleteReported && typeof trackEvent === 'function') {
+            briefingCompleteReported = true;
+            trackEvent('briefing_complete');
+        }
     });
     // A missing clip should not silence the rest of the briefing.
     briefing.addEventListener('error', () => {

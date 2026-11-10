@@ -2,6 +2,10 @@
 /**
  * Pre-generates Santa's briefing clips with the ElevenLabs text-to-speech API.
  *
+ * Clips are normally generated in the admin panel (/admin/audio), which keeps texts and audio in the database.
+ * This script is the offline alternative: files it writes are imported into the database on the next app start
+ * (slots with no clip or an older one). Edit texts in the admin panel; lines.json only seeds an empty database.
+ *
  *   yarn santa-audio                      generate everything that is missing or whose text changed
  *   yarn santa-audio --dry-run            only print what would be sent (no API key needed)
  *   yarn santa-audio --only intros,outros skip the name lines

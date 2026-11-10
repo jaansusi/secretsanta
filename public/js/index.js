@@ -35,14 +35,14 @@ function toggleCodeInput(event) {
 
 const CLIP_ROTATION_KEY = 'santaClipRotation';
 
-/** True when pre-generated intro/outro clips are deployed (counts are rendered into the page). */
+/** True when generated intro and outro clips exist (their URLs are rendered into the page). */
 function hasClipLibrary() {
     const library = window.SANTA_CLIPS;
-    return !!library && library.intros > 0 && library.outros > 0;
+    return !!library && library.intros.length > 0 && library.outros.length > 0;
 }
 
 function clipUrl(kind, index) {
-    return '/audio/santa/' + kind + '-' + String(index + 1).padStart(2, '0') + '.mp3';
+    return window.SANTA_CLIPS[kind + 's'][index];
 }
 
 function readClipRotation() {
@@ -61,13 +61,13 @@ function readClipRotation() {
  * intro is not always paired with the same outro.
  */
 function clipRotation() {
-    const library = window.SANTA_CLIPS || { intros: 0, outros: 0 };
+    const library = window.SANTA_CLIPS || { intros: [], outros: [] };
     const counter = readClipRotation();
-    const intros = Math.max(library.intros, 1);
+    const intros = Math.max(library.intros.length, 1);
     const cycle = Math.floor(counter / intros);
     return {
         intro: counter % intros,
-        outro: (counter + 1 + cycle) % Math.max(library.outros, 1),
+        outro: (counter + 1 + cycle) % Math.max(library.outros.length, 1),
         name: counter + cycle,  // reduced modulo the recipient's clip count once that is known
     };
 }
@@ -121,6 +121,7 @@ function acceptMission() {
         }
         const dossier = res.dossier || {};
         const nameClips = (dossier.clips && dossier.clips.names) || [];
+        briefingFinalized = true;
         if (useClips) {
             if (nameClips.length > 0) {
                 queueBriefingClips([nameClips[rotation.name % nameClips.length], clipUrl('outro', rotation.outro)]);
@@ -136,7 +137,10 @@ function acceptMission() {
         document.getElementById('replayButton').classList.remove('hidden');
         playAttempt.then(ok => {
             // Autoplay was blocked: the replay button becomes the way to hear Santa.
-            if (!ok) document.getElementById('replayButton').classList.add('attention');
+            if (!ok) {
+                document.getElementById('replayButton').classList.add('attention');
+                if (typeof trackEvent === 'function') trackEvent('autoplay_blocked');
+            }
         });
     }).catch(() => {
         showBriefingError('Midagi läks valesti, proovi uuesti.');

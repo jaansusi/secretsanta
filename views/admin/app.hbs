@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    {{> head pageTitle="Secret Santa Admin"}}
+    <meta name="robots" content="noindex, nofollow">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/admin-assets/admin.css">
+</head>
+
+<body>
+    <div class="shell">
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
+                <span class="brand-mark"><i class="bi bi-gift-fill"></i></span>
+                <span class="brand-text">Secret Santa<small>Admin</small></span>
+            </div>
+            <nav class="nav" aria-label="Admin">
+                <a href="/admin" data-nav="overview"><i class="bi bi-grid-1x2"></i>Overview</a>
+                <div class="nav-group">Manage</div>
+                <a href="/admin/participants" data-nav="participants"><i class="bi bi-people"></i>Participants</a>
+                <a href="/admin/families" data-nav="families"><i class="bi bi-house-heart"></i>Families</a>
+                <a href="/admin/content" data-nav="content"><i class="bi bi-folder2-open"></i>Dossiers</a>
+                <a href="/admin/audio" data-nav="audio"><i class="bi bi-soundwave"></i>Santa audio</a>
+                <div class="nav-group">Season</div>
+                <a href="/admin/draw" data-nav="draw"><i class="bi bi-shuffle"></i>Draw &amp; links</a>
+                <div class="nav-group">Insights</div>
+                <a href="/admin/analytics" data-nav="analytics"><i class="bi bi-graph-up"></i>Analytics</a>
+                <a href="/admin/activity" data-nav="activity"><i class="bi bi-clock-history"></i>Activity log</a>
+                <div class="nav-group">System</div>
+                <a href="/admin/settings" data-nav="settings"><i class="bi bi-gear"></i>Settings</a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="whoami"><i class="bi bi-person-circle"></i><span>{{adminName}}</span></div>
+                <a href="/" target="_blank" rel="noopener" data-external><i class="bi bi-box-arrow-up-right"></i>View site</a>
+                <a href="/admin/logout" data-external><i class="bi bi-box-arrow-right"></i>Sign out</a>
+            </div>
+        </aside>
+        <div class="main-wrap">
+            <header class="topbar">
+                <button class="icon-button" id="menuToggle" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false"><i class="bi bi-list"></i></button>
+                <span class="topbar-title">Secret Santa Admin</span>
+            </header>
+            <main id="view" class="view" tabindex="-1">
+                <div class="loading">Loading…</div>
+            </main>
+        </div>
+    </div>
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+    <script type="module" src="/admin-assets/app.js"></script>
+</body>
+
+</html>

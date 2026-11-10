@@ -1,4 +1,3 @@
-import { SantaClipLibrary } from '../santa-clips';
 
 /** Text fields editable by the admin. */
 export class SaveDossierDto {
@@ -13,6 +12,11 @@ export class DossierSummaryDto {
     missionBrief: string;
     hasPhoto: boolean;
     hasAudio: boolean;
+    photoBytes?: number;
+    audioBytes?: number;
+    photoMimeType?: string | null;
+    audioMimeType?: string | null;
+    updatedAt?: Date | null;
 }
 
 /** What the Santa receives together with the recipient's name. */
@@ -23,8 +27,8 @@ export class RevealDossierDto {
     hasPhoto: boolean;
     /** A hand-made clip stored in the dossier table, played when no generated name clip exists. */
     hasAudio: boolean;
-    /** Pre-generated clips: how many intros/outros exist and this recipient's name clips. */
-    clips: SantaClipLibrary;
+    /** URLs of this recipient's generated name clips, in name line order. */
+    clips: { names: string[] };
 }
 
 export interface DossierAsset {

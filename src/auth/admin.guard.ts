@@ -1,19 +1,28 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
-import { Request } from 'express';
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { UserService } from 'src/user/user.service';
+import { AdminRequest, adminSessionUserId } from './admin-session';
 
-/** Allows the request only when the santa_auth cookie belongs to an admin user. */
+/** Allows the request only with a valid signed admin session that belongs to a current admin user. */
 @Injectable()
 export class AdminGuard implements CanActivate {
     constructor(private readonly userService: UserService) { }
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
-        const request = context.switchToHttp().getRequest<Request>();
-        const id = request.cookies?.['santa_auth'];
-        if (!id) {
-            return false;
+        const request = context.switchToHttp().getRequest<AdminRequest>();
+        const user = await resolveAdmin(request, this.userService);
+        if (!user) {
+            throw new UnauthorizedException('Admin session required');
         }
-        const user = await this.userService.getById(id);
-        return !!user && user.isAdmin;
+        request.admin = user;
+        return true;
     }
+}
+
+export async function resolveAdmin(request: AdminRequest, userService: UserService) {
+    const id = adminSessionUserId(request);
+    if (id === null) {
+        return null;
+    }
+    const user = await userService.getById(id);
+    return user && user.isAdmin ? user : null;
 }
