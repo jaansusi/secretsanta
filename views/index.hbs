@@ -189,10 +189,10 @@
     </main>
   </div>
 
-  {{#if santaClips}}<script>window.SANTA_CLIPS = { intros: {{santaClips.intros}}, outros: {{santaClips.outros}} };</script>{{/if}}
+  {{#if santaClips}}<script>window.SANTA_CLIPS = {{{santaClips}}};</script>{{/if}}
+  <script src="/js/track.js"></script>
   <script src="/js/audio.js"></script>
   <script src="/js/snow.js"></script>
-  <script src="/js/dossier-facts.js"></script>
   <script src="/js/index.js"></script>
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
 </body>

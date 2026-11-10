@@ -6,7 +6,8 @@ import { DossierAsset, DossierSummaryDto, RevealDossierDto, SaveDossierDto } fro
 import { User } from 'src/user/entities/user.entity';
 import { UserService } from 'src/user/user.service';
 import { EncryptionService, EncryptionStrategy } from 'src/encryption/encryption.service';
-import { readSantaClipLibrary } from './santa-clips';
+import { SantaAudioService } from 'src/santa-audio/santa-audio.service';
+import { AgencyFactsService } from './agency-facts.service';
 
 @Injectable()
 export class DossierService {
@@ -17,6 +18,11 @@ export class DossierService {
         'missionBrief',
         [literal('photo IS NOT NULL'), 'hasPhoto'],
         [literal('audio IS NOT NULL'), 'hasAudio'],
+        [literal('octet_length(photo)'), 'photoBytes'],
+        [literal('octet_length(audio)'), 'audioBytes'],
+        'photoMimeType',
+        'audioMimeType',
+        'updatedAt',
     ];
 
     constructor(
@@ -24,6 +30,8 @@ export class DossierService {
         private readonly dossierRepository: typeof Dossier,
         private readonly userService: UserService,
         private readonly encryptionService: EncryptionService,
+        private readonly santaAudioService: SantaAudioService,
+        private readonly agencyFactsService: AgencyFactsService,
         private readonly logger: Logger,
     ) { }
 
@@ -123,14 +131,14 @@ export class DossierService {
             facts,
             hasPhoto: summary?.hasPhoto ?? false,
             hasAudio: summary?.hasAudio ?? false,
-            clips: readSantaClipLibrary(recipient?.name),
+            clips: { names: await this.santaAudioService.nameClipUrls(recipient) },
+            agencyFacts: await this.agencyFactsService.forRecipient(recipient?.name),
         };
     }
 
-    /** How many shared intro/outro clips exist; the page needs this before the recipient is known. */
-    public getClipCounts(): { intros: number; outros: number } {
-        const library = readSantaClipLibrary();
-        return { intros: library.intros, outros: library.outros };
+    /** Santa's intro and outro clips; the page needs them before the recipient is known. */
+    public async getClipPlaylist(): Promise<{ intros: string[]; outros: string[] }> {
+        return this.santaAudioService.playlist();
     }
 
     private toSummary(userId: number, row: any): DossierSummaryDto {
@@ -140,6 +148,11 @@ export class DossierService {
             missionBrief: row?.missionBrief ?? '',
             hasPhoto: !!row?.hasPhoto,
             hasAudio: !!row?.hasAudio,
+            photoBytes: row?.photoBytes ? Number(row.photoBytes) : 0,
+            audioBytes: row?.audioBytes ? Number(row.audioBytes) : 0,
+            photoMimeType: row?.photoMimeType ?? null,
+            audioMimeType: row?.audioMimeType ?? null,
+            updatedAt: row?.updatedAt ?? null,
         };
     }
 }
