@@ -67,5 +67,18 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: Summary
-        run: echo "Pushed ${IMAGE}:${{ steps.tag.outputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
+      # Surface the tag where it is seen without opening the logs: a notice
+      # annotation at the top of the run page (and in `gh run view`), plus a
+      # summary with the line to paste into the home-infra manifest.
+      - name: Report image tag
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          echo "::notice title=Image tag::${TAG}  (${IMAGE}:${TAG})"
+          {
+            echo "### Image tag: \`${TAG}\`"
+            echo
+            echo '```yaml'
+            echo "image: ${IMAGE}:${TAG}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
