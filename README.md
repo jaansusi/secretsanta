@@ -14,6 +14,7 @@ The admin panel lives at `/admin`. Sign in with a Google account whose participa
 - **Participants**: searchable table, profile and dossier editing (codename, brief, facts, photo, audio), per-person activity, CSV export.
 - **Families**: groups that never give to each other, with member assignment.
 - **Dossiers**: completeness of every dossier at a glance.
+- **Agency facts**: the made-up "Agentuuri andmed" lines, edited directly in the table (Enter saves and moves down, Escape undoes), with bulk paste, on/off switches and who sees each one.
 - **Santa audio**: edit Santa's lines and generate the clips with ElevenLabs, with progress and per-participant previews.
 - **Draw & links**: feasibility check, run/clear the draw, validation without revealing pairs, personal links, "start new season" (saves this year's recipients as last year's).
 - **Analytics**: visitors, missions opened, Santa listen-through, funnel, devices, browsers, time of day, per-participant engagement.
@@ -23,6 +24,10 @@ The admin panel lives at `/admin`. Sign in with a Google account whose participa
 Each Santa's recipient is stored in `user.giftingTo` as base64, not encrypted, only so names are not readable
 at a glance in query results. `decryptionCode` is the random code in the participant's personal link. Rows drawn
 in the older AES format are converted to base64 on startup, keeping their codes, so links already sent keep working.
+
+Agency facts are stored in `agency_fact` and seeded once with the original list. Each dossier shows a few active
+ones (Settings, default 3), picked on the server from the recipient's name, so a person keeps the same facts while
+the list is unchanged.
 
 Site events are stored in `analytics_event` (no IP addresses), admin changes in `audit_log`, settings in `setting`.
 Reports use the `ADMIN_TIME_ZONE` time zone (default `Europe/Tallinn`).

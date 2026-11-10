@@ -6,6 +6,7 @@ import { Family } from 'src/family/entities/family.entity';
 import { Dossier } from 'src/dossier/entities/dossier.entity';
 import { DossierService } from 'src/dossier/dossier.service';
 import { SantaAudioService } from 'src/santa-audio/santa-audio.service';
+import { AgencyFactsService } from 'src/dossier/agency-facts.service';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { AuditActor, AuditService } from 'src/audit/audit.service';
 import { EncryptionService, EncryptionStrategy } from 'src/encryption/encryption.service';
@@ -43,6 +44,7 @@ export class ParticipantsService {
         private readonly encryptionService: EncryptionService,
         private readonly drawService: DrawService,
         private readonly santaAudioService: SantaAudioService,
+        private readonly agencyFactsService: AgencyFactsService,
     ) { }
 
     public async list() {
@@ -109,6 +111,7 @@ export class ParticipantsService {
             hasLink: !!user.decryptionCode,
             dossier,
             nameClips: await this.santaAudioService.nameClipUrls(user),
+            agencyFacts: await this.agencyFactsService.forRecipient(user.name),
             activity: activity.get(id) ?? null,
             events: events.items,
             audit: audit.items,

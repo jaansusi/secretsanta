@@ -7,6 +7,7 @@ import { User } from 'src/user/entities/user.entity';
 import { UserService } from 'src/user/user.service';
 import { EncryptionService, EncryptionStrategy } from 'src/encryption/encryption.service';
 import { SantaAudioService } from 'src/santa-audio/santa-audio.service';
+import { AgencyFactsService } from './agency-facts.service';
 
 @Injectable()
 export class DossierService {
@@ -30,6 +31,7 @@ export class DossierService {
         private readonly userService: UserService,
         private readonly encryptionService: EncryptionService,
         private readonly santaAudioService: SantaAudioService,
+        private readonly agencyFactsService: AgencyFactsService,
         private readonly logger: Logger,
     ) { }
 
@@ -130,6 +132,7 @@ export class DossierService {
             hasPhoto: summary?.hasPhoto ?? false,
             hasAudio: summary?.hasAudio ?? false,
             clips: { names: await this.santaAudioService.nameClipUrls(recipient) },
+            agencyFacts: await this.agencyFactsService.forRecipient(recipient?.name),
         };
     }
 

@@ -172,7 +172,9 @@ function renderDossier(res) {
     }
     const stats = document.getElementById('dossierStats');
     stats.innerHTML = '';
-    outrageousFacts(res.giftingTo, 3).forEach(fact => {
+    const agencyFacts = dossier.agencyFacts || [];
+    document.getElementById('dossierStatsRow').classList.toggle('hidden', agencyFacts.length === 0);
+    agencyFacts.forEach(fact => {
         const item = document.createElement('li');
         item.textContent = fact;
         stats.appendChild(item);

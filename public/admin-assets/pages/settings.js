@@ -24,6 +24,7 @@ export async function render(view) {
                 <div class="card-body form-grid">
                     <div class="field"><label for="exchangeDate">Gift exchange date</label><input type="date" id="exchangeDate" name="exchangeDate" value="${settings.exchangeDate}"></div>
                     <div class="field"><label for="giftBudget">Gift budget</label><input type="text" id="giftBudget" name="giftBudget" maxlength="100" placeholder="e.g. 30 €" value="${settings.giftBudget}"></div>
+                    <div class="field"><label for="agencyFactsPerDossier">Agency facts per dossier</label><input type="number" id="agencyFactsPerDossier" name="agencyFactsPerDossier" min="0" max="10" step="1" value="${settings.agencyFactsPerDossier}"></div>
                 </div>
             </section>
             <section class="card">
@@ -63,6 +64,7 @@ export async function render(view) {
                     giftBudget: String(data.get('giftBudget')),
                     letterUrl: String(data.get('letterUrl')),
                     adminNotes: String(data.get('adminNotes')),
+                    agencyFactsPerDossier: parseInt(String(data.get('agencyFactsPerDossier')), 10) || 0,
                 },
             });
             setDirty(false);

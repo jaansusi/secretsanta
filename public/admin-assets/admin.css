@@ -277,7 +277,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .field { display: flex; flex-direction: column; gap: 5px; }
 .field > label, .label { font-weight: 500; font-size: 13px; color: var(--ink); }
 .hint { color: var(--muted); font-size: 12.5px; }
-input[type=text], input[type=email], input[type=url], input[type=date], input[type=search], select, textarea {
+input[type=text], input[type=email], input[type=url], input[type=date], input[type=number], input[type=search], select, textarea {
     width: 100%; height: 34px; padding: 0 10px; border-radius: 6px;
     border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink);
     font: inherit;
@@ -410,3 +410,17 @@ details.table-view .table-wrap { margin-top: 8px; max-height: 260px; overflow-y:
 .info.tip-below::after { bottom: auto; top: calc(100% + 6px); }
 .info:hover::after, .info:focus::after { opacity: 1; visibility: visible; }
 h1 + .info { font-size: 15px; }
+
+/* ---------- Inline editing ---------- */
+.toast-action { margin-left: auto; background: none; border: 0; color: inherit; font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; padding: 0 0 0 12px; }
+input.inline-edit[type=text] { border-color: transparent; background: transparent; height: 32px; margin: -4px 0 -4px -9px; width: calc(100% + 9px); padding: 0 8px; }
+input.inline-edit[type=text]:hover { border-color: var(--line); background: var(--surface); }
+input.inline-edit[type=text]:focus { border-color: var(--accent); background: var(--surface); }
+input.inline-add[type=text] { border-style: dashed; }
+.table tr.inactive .inline-edit { color: var(--muted); text-decoration: line-through; }
+.row-state { display: inline-block; width: 16px; text-align: center; font-size: 14px; }
+.row-state.saving { color: var(--muted); }
+.row-state.saved { color: var(--good); }
+.row-state.error { color: var(--bad); }
+.table td.fit, .table th.fit { width: 1%; white-space: nowrap; }
+.table.dense td { padding-top: 5px; padding-bottom: 5px; }

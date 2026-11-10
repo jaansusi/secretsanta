@@ -29,6 +29,8 @@ export class RevealDossierDto {
     hasAudio: boolean;
     /** URLs of this recipient's generated name clips, in name line order. */
     clips: { names: string[] };
+    /** Made-up "agency intelligence" lines for this recipient. */
+    agencyFacts: string[];
 }
 
 export interface DossierAsset {

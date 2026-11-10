@@ -7,6 +7,10 @@ import { CLIPS_DIR, santaSlug } from 'src/dossier/santa-clips';
 import { SantaLine, SantaLineKind } from './entities/santa-line.entity';
 import { SantaClip } from './entities/santa-clip.entity';
 import { SantaAudioService } from './santa-audio.service';
+import { Setting } from 'src/settings/entities/setting.entity';
+
+/** Marks the one-time seed, so deleting every line does not bring lines.json back. */
+const SEEDED_KEY = 'santaLinesSeeded';
 
 /** scripts/santa-audio holds the original texts (lines.json) and what each file was generated from (manifest.json). */
 const SCRIPT_DIR = join(__dirname, '..', '..', 'scripts', 'santa-audio');
@@ -35,6 +39,8 @@ export class SantaAudioImport implements OnApplicationBootstrap {
         private readonly clipRepository: typeof SantaClip,
         @InjectModel(User)
         private readonly userRepository: typeof User,
+        @InjectModel(Setting)
+        private readonly settingRepository: typeof Setting,
         private readonly santaAudioService: SantaAudioService,
     ) { }
 
@@ -48,7 +54,11 @@ export class SantaAudioImport implements OnApplicationBootstrap {
     }
 
     private async importLines() {
+        if (await this.settingRepository.findByPk(SEEDED_KEY)) {
+            return;
+        }
         if (await this.lineRepository.count() > 0) {
+            await this.settingRepository.upsert({ key: SEEDED_KEY, value: true });
             return;
         }
         const lines = readJson<{ intros?: string[]; nameLines?: string[]; outros?: string[] }>(join(SCRIPT_DIR, 'lines.json'));
@@ -61,6 +71,7 @@ export class SantaAudioImport implements OnApplicationBootstrap {
             ...(lines.outros ?? []).map((text, i) => ({ kind: 'outro', position: i + 1, text })),
         ];
         await this.lineRepository.bulkCreate(rows);
+        await this.settingRepository.upsert({ key: SEEDED_KEY, value: true });
         this.logger.log(`Imported ${rows.length} Santa lines from lines.json`);
     }
 

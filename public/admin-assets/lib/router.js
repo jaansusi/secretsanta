@@ -7,6 +7,7 @@ const routes = [
     { pattern: /^\/admin\/participants\/(\d+)\/?$/, nav: 'participants', title: 'Participant', load: () => import('../pages/participant.js') },
     { pattern: /^\/admin\/families\/?$/, nav: 'families', title: 'Families', load: () => import('../pages/families.js') },
     { pattern: /^\/admin\/content\/?$/, nav: 'content', title: 'Dossiers', load: () => import('../pages/content.js') },
+    { pattern: /^\/admin\/facts\/?$/, nav: 'facts', title: 'Agency facts', load: () => import('../pages/facts.js') },
     { pattern: /^\/admin\/audio\/?$/, nav: 'audio', title: 'Santa audio', load: () => import('../pages/audio.js') },
     { pattern: /^\/admin\/draw\/?$/, nav: 'draw', title: 'Draw & links', load: () => import('../pages/draw.js') },
     { pattern: /^\/admin\/analytics\/?$/, nav: 'analytics', title: 'Analytics', load: () => import('../pages/analytics.js') },

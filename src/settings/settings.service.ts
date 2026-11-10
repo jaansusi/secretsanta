@@ -15,6 +15,8 @@ export interface SiteSettings {
     giftBudget: string;
     /** Private notes for the organisers. */
     adminNotes: string;
+    /** How many agency facts each dossier shows. */
+    agencyFactsPerDossier: number;
 }
 
 const DEFAULTS: SiteSettings = {
@@ -24,6 +26,7 @@ const DEFAULTS: SiteSettings = {
     exchangeDate: '',
     giftBudget: '',
     adminNotes: '',
+    agencyFactsPerDossier: 3,
 };
 
 const MAX_TEXT_LENGTH = 5000;
@@ -82,6 +85,9 @@ export class SettingsService implements OnModuleInit {
         const expected = typeof DEFAULTS[key];
         if (typeof value !== expected) {
             throw new BadRequestException(`${key} must be a ${expected}`);
+        }
+        if (typeof value === 'number' && (!Number.isInteger(value) || value < 0 || value > 10)) {
+            throw new BadRequestException(`${key} must be a whole number from 0 to 10`);
         }
         if (typeof value === 'string') {
             const text = value.trim();

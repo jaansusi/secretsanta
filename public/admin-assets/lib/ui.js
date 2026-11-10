@@ -1,14 +1,18 @@
 import { html, mount, $, esc } from './dom.js';
 
 // ---------- Toasts ----------
-export function toast(message, type = 'info') {
+/** Short notice in the corner. `action` adds a button, e.g. { label: 'Undo', onClick }. */
+export function toast(message, type = 'info', { action = null } = {}) {
     const container = document.getElementById('toasts');
     const element = document.createElement('div');
     element.className = `toast ${type === 'error' ? 'error' : ''}`;
     element.setAttribute('role', type === 'error' ? 'alert' : 'status');
-    mount(element, html`<i class="bi bi-${type === 'error' ? 'exclamation-octagon' : 'check2-circle'}"></i><span>${message}</span>`);
+    mount(element, html`<i class="bi bi-${type === 'error' ? 'exclamation-octagon' : 'check2-circle'}"></i><span>${message}</span>${action ? html`<button type="button" class="toast-action">${action.label}</button>` : ''}`);
+    if (action) {
+        element.querySelector('.toast-action').addEventListener('click', () => { element.remove(); action.onClick(); });
+    }
     container.appendChild(element);
-    setTimeout(() => element.remove(), type === 'error' ? 7000 : 3500);
+    setTimeout(() => element.remove(), type === 'error' ? 7000 : action ? 8000 : 3500);
 }
 
 export function toastWarnings(warnings) {

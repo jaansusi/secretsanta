@@ -67,6 +67,10 @@ export async function render(view, { params }) {
                     <textarea id="d-facts" name="facts" rows="5" maxlength="5000" placeholder="One fact per line">${participant.interestingFacts}</textarea>
                     <span class="hint" id="factsHint"></span>
                 </div>
+                <div class="field full">
+                    <span class="label">Agency facts <a class="hint" href="/admin/facts" style="font-weight:400">Edit list</a></span>
+                    ${participant.agencyFacts.length ? html`<ul class="fact-preview" style="margin:0">${participant.agencyFacts.map(f => html`<li>${f}</li>`)}</ul>` : html`<span class="muted">None</span>`}
+                </div>
             </div>
         </div>
         <div class="card-foot"><button type="submit" class="btn btn-primary" disabled>Save dossier text</button></div>`);
