@@ -3,15 +3,17 @@ import { Request, Response } from 'express';
 import { sendBinary } from 'src/common/send-binary';
 import { SantaAudioService } from './santa-audio.service';
 
-/** Serves generated clips to the reveal page. URLs carry the generation time, so they can be cached forever. */
+/**
+ * Serves generated clips to the reveal page. URLs are signed (see SantaAudioService.clipUrl), so clips cannot be
+ * enumerated, and they carry the generation time, so they can be cached forever.
+ */
 @Controller('santa-audio')
 export class SantaAudioController {
     constructor(private readonly santaAudioService: SantaAudioService) { }
 
     @Get(':file')
     async clip(@Param('file') file: string, @Req() request: Request, @Res() response: Response) {
-        const match = /^(\d+)\.mp3$/.exec(file);
-        const clip = match ? await this.santaAudioService.getClipAudio(parseInt(match[1], 10)) : null;
+        const clip = await this.santaAudioService.getClipAudio(file);
         if (!clip) {
             throw new NotFoundException();
         }

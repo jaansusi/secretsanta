@@ -13,7 +13,8 @@
  *   yarn santa-audio --force              regenerate even if the clip already exists
  *
  * Reads lines.json next to this file. Participant names come from the `user` table (DB_* env vars)
- * unless --names is given. Clips land in public/audio/santa/ (commit them, the app serves them from there).
+ * unless --names is given. Clips land in scripts/santa-audio/clips/; the app imports them into the database on
+ * its next start and serves them under signed URLs. The folder is not public: name clips are named after people.
  * manifest.json next to this script records the text each clip was generated from, so unchanged lines are
  * skipped on the next run.
  *
@@ -24,8 +25,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-// The app serves this folder statically; the manifest stays next to the script so it is not public.
-const OUT_DIR = join(here, '..', '..', 'public', 'audio', 'santa');
+// Not served by the app (see CLIPS_DIR in src/dossier/santa-clips.ts); imported into the database on startup.
+const OUT_DIR = join(here, 'clips');
 const MANIFEST_PATH = join(here, 'manifest.json');
 const API_BASE = 'https://api.elevenlabs.io/v1';
 const LANGUAGE = 'et';

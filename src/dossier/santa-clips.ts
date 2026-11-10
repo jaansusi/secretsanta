@@ -1,10 +1,12 @@
 import { join } from 'node:path';
 
 /**
- * Folder where `yarn santa-audio` writes mp3s. The app no longer plays from here: on startup the files are
- * imported into the database (see SantaAudioImport) and served from /santa-audio.
+ * Folder where `yarn santa-audio` writes mp3s. On startup the files are imported into the database (see
+ * SantaAudioImport) and served from /santa-audio under signed URLs. It is deliberately outside public/:
+ * name clips are named after participants (name-<slug>-N.mp3), so serving them statically would let anyone
+ * guess and download them.
  */
-export const CLIPS_DIR = join(__dirname, '..', '..', 'public', 'audio', 'santa');
+export const CLIPS_DIR = join(__dirname, '..', '..', 'scripts', 'santa-audio', 'clips');
 
 /** "Mari-Liis Õunapuu" -> "mari-liis-ounapuu". Keep in sync with slug() in scripts/santa-audio/generate.mjs. */
 export function santaSlug(name: string): string {

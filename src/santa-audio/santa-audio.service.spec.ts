@@ -65,9 +65,35 @@ describe('SantaAudioService', () => {
 
         const playlist = await service.playlist();
         expect(playlist.intros).toHaveLength(1);
-        expect(playlist.intros[0]).toMatch(/^\/santa-audio\/\d+\.mp3\?v=\d+$/);
+        expect(playlist.intros[0]).toMatch(/^\/santa-audio\/\d+\.\d+\.[A-Za-z0-9_-]{22}\.mp3$/);
         expect(await service.nameClipUrls({ id: 10, name: 'Mari' } as any)).toHaveLength(2);
         expect((await service.plan({ scope: 'outdated' }))).toHaveLength(0);
+    });
+
+    it('serves a clip only through its signed URL, so clips cannot be enumerated', async () => {
+        const { service, clips } = setup();
+        await service.start(actor, { scope: 'outdated' });
+        await waitForJob(service);
+        const [url] = await service.nameClipUrls({ id: 10, name: 'Mari' } as any);
+        const file = url.split('/').pop()!;
+        const [id, generatedAt, signature] = file.split('.');
+        expect((await service.getClipAudio(file))?.audio.toString()).toMatch(/^mp3:.*Mari/);
+
+        // The old guessable form, a neighbouring id with the same signature, and a tampered signature.
+        expect(await service.getClipAudio(`${id}.mp3`)).toBeNull();
+        expect(await service.getClipAudio(`${Number(id) + 1}.${generatedAt}.${signature}.mp3`)).toBeNull();
+        const flipped = (signature[0] === 'A' ? 'B' : 'A') + signature.slice(1);
+        expect(await service.getClipAudio(`${id}.${generatedAt}.${flipped}.mp3`)).toBeNull();
+
+        // A different COOKIE_SECRET (a forged URL from another deployment) does not verify either.
+        const secret = process.env.COOKIE_SECRET;
+        process.env.COOKIE_SECRET = 'another-secret-another-secret-another';
+        expect(await service.getClipAudio(file)).toBeNull();
+        process.env.COOKIE_SECRET = secret;
+
+        // Regenerating a clip retires its old URL.
+        clips.find(c => c.id === Number(id)).generatedAt = new Date(Number(generatedAt) + 1000);
+        expect(await service.getClipAudio(file)).toBeNull();
     });
 
     it('marks clips out of date when the text or the name changes', async () => {

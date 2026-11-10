@@ -5,8 +5,24 @@ import { AuditActor, AuditService } from 'src/audit/audit.service';
 import { SantaLine, SantaLineKind, SANTA_LINE_KINDS } from './entities/santa-line.entity';
 import { SantaClip } from './entities/santa-clip.entity';
 import { elevenLabsConfig, synthesize } from './eleven-labs';
+import { createHmac, timingSafeEqual } from 'crypto';
 
 export const SANTA_AUDIO_URL = '/santa-audio';
+/** File name of a clip URL: `<id>.<generatedAtMs>.<signature>.mp3`. */
+const CLIP_FILE = /^(\d{1,10})\.(\d{1,15})\.([A-Za-z0-9_-]{22})\.mp3$/;
+
+/**
+ * Key for clip URL signatures, derived from COOKIE_SECRET so no new secret has to be configured.
+ * Name clips say a participant's name, so their URLs must not be guessable or enumerable.
+ */
+function clipUrlKey(): Buffer {
+    return createHmac('sha256', process.env.COOKIE_SECRET ?? '').update('santa-audio-clip-url').digest();
+}
+
+/** 128-bit HMAC over the clip id and generation time, base64url (22 characters). */
+function clipSignature(id: number, generatedAtMs: number): string {
+    return createHmac('sha256', clipUrlKey()).update(`${id}.${generatedAtMs}`).digest().subarray(0, 16).toString('base64url');
+}
 const NAME_PLACEHOLDER = '{name}';
 const MAX_LINE_LENGTH = 1000;
 const MAX_REPORTED_ERRORS = 20;
@@ -123,8 +139,13 @@ export class SantaAudioService {
         return line.kind === 'name' && user ? line.text.replaceAll(NAME_PLACEHOLDER, user.name) : line.text;
     }
 
+    /**
+     * Unguessable, signed URL of a clip. It changes when the clip is regenerated, so the audio can be
+     * cached forever, and the old URL stops working.
+     */
     public clipUrl(clip: SantaClip): string {
-        return `${SANTA_AUDIO_URL}/${clip.id}.mp3?v=${new Date(clip.generatedAt).getTime()}`;
+        const generatedAtMs = new Date(clip.generatedAt).getTime();
+        return `${SANTA_AUDIO_URL}/${clip.id}.${generatedAtMs}.${clipSignature(clip.id, generatedAtMs)}.mp3`;
     }
 
     private async clipMetadata(): Promise<SantaClip[]> {
@@ -139,8 +160,27 @@ export class SantaAudioService {
         return !clip ? 'missing' : clip.text === expected ? 'ready' : 'stale';
     }
 
-    public async getClipAudio(id: number): Promise<SantaClip | null> {
-        return this.clipRepository.findByPk(id);
+    /**
+     * The clip behind a URL file name from clipUrl(), or null when the name is malformed, the signature
+     * does not verify (guessed or enumerated ids) or the clip has since been regenerated or deleted.
+     */
+    public async getClipAudio(file: string): Promise<SantaClip | null> {
+        const match = CLIP_FILE.exec(file);
+        if (!match) {
+            return null;
+        }
+        const id = Number(match[1]);
+        const generatedAtMs = Number(match[2]);
+        const expected = Buffer.from(clipSignature(id, generatedAtMs));
+        const actual = Buffer.from(match[3]);
+        if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+            return null;
+        }
+        const clip = await this.clipRepository.findByPk(id);
+        if (!clip || new Date(clip.generatedAt).getTime() !== generatedAtMs) {
+            return null;
+        }
+        return clip;
     }
 
     public async deleteClip(actor: AuditActor, id: number) {

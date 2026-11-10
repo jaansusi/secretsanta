@@ -52,6 +52,7 @@ repeated below:
 | M9 | **Weak default secret.** `.env.template` shipped `COOKIE_SECRET=1234567890`, and a missing secret only produced a warning. | Startup fails in production without a random secret of 32+ characters (`src/config/env.ts`). The template explains how to generate one. |
 | M10 | **Vulnerable dependency.** `hbs` ≤ 4.4.0 has CVE-2021-32822 (file disclosure) with no patched release. | Replaced by `express-handlebars` 9. |
 | M11 | **No rate limiting.** | `@nestjs/throttler`: 300 req/min/IP globally, 30/min on endpoints that look a user up by code. Set `TRUST_PROXY` behind a proxy. |
+| M12 | **Santa clips could be enumerated** *(reproduced)*. Generated clips were served at `/santa-audio/<id>.mp3` with sequential ids and no auth, so anyone could count through them and hear every participant's name line. The script-era clips were also served statically from `public/audio/santa/` under guessable names (`name-<first>-<last>-N.mp3`), letting anyone confirm a suspected participant. That reveals the participant list, not the pairs. | Clip URLs are signed: `/santa-audio/<id>.<generatedAt>.<signature>.mp3`, a 128-bit HMAC keyed from `COOKIE_SECRET`. Unsigned, tampered or re-used-signature URLs give `404`, and regenerating a clip retires its old URL, so cache-forever headers stay correct. URLs only reach the admin panel and, for name clips, the recipient's own Santa. The script-era folder moved to `scripts/santa-audio/clips/` (not served) and is still imported into the database on startup. |
 
 ### Low
 
@@ -76,15 +77,16 @@ Production image + Postgres 18, with master's code run side by side for the "bef
 - `?code=` gives a `303` and an `HttpOnly; SameSite=Lax` session. An array (even one containing the valid code), an object or an unknown code gives no session.
 - OAuth start sends `state` + S256 `code_challenge`. A forged-state callback returns `401`. `/admin/login?next=//evil.com` falls back to `/admin`.
 - Logs contained no decryption code and no SQL.
+- `/santa-audio/1.mp3` through `5.mp3`, the old `?v=` form and the old static `/audio/santa/name-*.mp3` paths all gave `404`. A signed URL from the admin API gave `200`, the same signature on a neighbouring id and a tampered signature gave `404`. The Santa's reveal played intro, name line and outro through signed URLs (`206` range responses).
 - Playwright: all 11 admin pages render, sign-out works, the reveal (with photo) and logout work, the session cookie is not readable from `document.cookie`, and there were zero CSP violations or JS errors.
-- `yarn test`: 60 tests in 10 suites (including #61's draw, Santa audio and agency-facts specs) pass on Node 26. `yarn audit --groups dependencies`: 0 vulnerabilities.
+- `yarn test`: 61 tests in 10 suites (including #61's draw, Santa audio and agency-facts specs) pass on Node 26. `yarn audit --groups dependencies`: 0 vulnerabilities.
 
 ## Residual risks and recommendations
 
 1. **Assignments are not encrypted at rest.** Since #61, `giftingTo` is base64 (by design, "keeps names from being readable at a glance… nothing more"), and `decryptionCode` is stored in plaintext. Anyone with database access (pgAdmin, backups, a DB compromise) can read the whole draw, and so can anyone who can read the admin API's personal links. Treat DB and admin access as knowing every assignment. Real protection would mean the server not holding the codes (hash them and require participants to type theirs, giving up auto-reveal after Google login) or encrypting with a key held outside the database.
 2. **Stateless sessions** cannot be revoked one by one. Deleting a user or removing admin rights takes effect immediately (checked per request), but a stolen cookie for an existing user stays valid until it expires (participant 30 days, admin 7 days). Rotate `COOKIE_SECRET` to sign everyone out.
 3. `/dossier/audio?code=…` still accepts the code in the query string, because the page fetches the hand-made clip in the same click that submits the code, before a session exists. It is same-origin and `no-referrer`, but it can appear in proxy access logs.
-4. Generated Santa clips are served at `/santa-audio/<id>.mp3` with sequential ids and no auth, so anyone can enumerate them and hear every participant's name line. That reveals the participant list, not the pairs. Random clip URLs would close it.
+4. A clip URL, once handed out, works for anyone it is shared with (like a personal link). Name clip URLs only go to admins and to that participant's Santa.
 5. `synchronize: true` lets the app alter its schema at startup. Consider migrations and a DB user without DDL rights.
 6. The rate limiter is in-memory per replica. Use a shared store if the app is scaled out, and set `TRUST_PROXY` correctly or all clients share one bucket.
 7. `style-src 'unsafe-inline'` remains (inline `style` attributes in templates, Bootstrap, the admin UI). Risk is low because script is locked down.

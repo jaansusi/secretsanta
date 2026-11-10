@@ -56,8 +56,9 @@ survive redeploys. A clip goes out of date when its text changes or the particip
 up-to-date clips are played.
 
 On first start the texts are seeded from `scripts/santa-audio/lines.json`. `yarn santa-audio` still works as an
-offline alternative: mp3s it writes to `public/audio/santa/` are imported into the database on the next start
-when that slot has no clip or an older one.
+offline alternative: mp3s it writes to `scripts/santa-audio/clips/` are imported into the database on the next start
+when that slot has no clip or an older one. That folder is not served; every clip, including name clips, is only
+reachable through the signed, unguessable URL the app hands out (`/santa-audio/<id>.<time>.<signature>.mp3`).
 
 The browser rotates through the clips: a counter in `localStorage` advances on every accepted mission, so
 refreshing the page gives a different intro, name-line variant and outro. A hand-uploaded clip in the

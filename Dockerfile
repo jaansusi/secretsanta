@@ -38,8 +38,9 @@ COPY --from=build /app/dist ./dist
 # main.ts resolves these relative to dist/ (join(__dirname, '..', 'public')).
 COPY public ./public
 COPY views ./views
-# Santa's original texts, imported into the database on first start.
+# Santa's original texts and any script-generated clips, imported into the database on start.
 COPY scripts/santa-audio/*.json ./scripts/santa-audio/
+COPY scripts/santa-audio/clips ./scripts/santa-audio/clips
 COPY package.json ./
 USER node
 EXPOSE 3000

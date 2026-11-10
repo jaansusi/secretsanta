@@ -25,7 +25,7 @@ interface ManifestEntry {
 /**
  * Brings script-era content into the database on startup:
  * - the texts from lines.json, when no lines exist yet;
- * - mp3s in public/audio/santa made with `yarn santa-audio`, when the database has no clip for that slot
+ * - mp3s in scripts/santa-audio/clips made with `yarn santa-audio`, when the database has no clip for that slot
  *   or an older one. Files are matched by name: intro-NN, outro-NN, name-<slug>-N (N = name line number).
  */
 @Injectable()
