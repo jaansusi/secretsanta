@@ -89,6 +89,10 @@
     }
   },
   "resolutions": {
-    "sequelize/uuid": "^11.1.1"
+    "sequelize/uuid": "^11.1.1",
+    "**/@jest/reporters/glob": "^14.0.4",
+    "**/jest-config/glob": "^14.0.4",
+    "**/jest-runtime/glob": "^14.0.4",
+    "**/test-exclude/glob": "^14.0.4"
   }
 }
