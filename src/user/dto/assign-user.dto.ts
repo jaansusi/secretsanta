@@ -1,12 +1,7 @@
-import { User } from "../entities/user.entity";
-
+/** Internal: the encrypted assignment written to a user after the draw. Never accepted from requests. */
 export class AssignUserDto {
-    constructor(partial?: Partial<User>) {
-        if (partial)
-            Object.assign(this, JSON.parse(JSON.stringify(partial)));
-    }
     iv: string;
     giftingTo: string;
     decryptionCode: string;
-    giftingToDebug: string;
+    giftingToDebug?: string;
 }

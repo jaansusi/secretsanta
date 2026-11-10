@@ -7,7 +7,8 @@ This project uses a PostgreSQL database and supports Docker for containerization
 
 The admin panel lives at `/admin`. Sign in with a Google account whose participant has admin access
 (the `ADMIN_EMAIL` account is made admin automatically). Admin access uses its own signed, httpOnly
-`santa_admin` cookie, so `COOKIE_SECRET` must be set. The panel is a small single-page app in
+`santa_admin` cookie (7 days), issued only by a Google sign-in, so a participant's personal link never grants
+admin access. The panel is a small single-page app in
 `public/admin-assets/` with no build step; its JSON API is `/api/admin/*` (`src/admin/`).
 
 - **Overview**: season checklist, mission progress, dossier completeness, recent activity.
@@ -39,8 +40,9 @@ After they accept the mission, Santa's pre-generated audio clip plays and a "cla
 showing the recipient's name, photo, codename, mission brief and known facts.
 
 Each dossier belongs to the recipient (the person whose name is revealed) and is edited on the
-participant's page in the admin panel: codename, mission brief, a photo and an audio clip (any `image/*` and `audio/*`,
-up to 20 MB each). Facts come from the user's existing "Facts" field, one per line. Assets are stored
+participant's page in the admin panel: codename, mission brief, a photo (JPEG, PNG, GIF, WebP, AVIF, HEIC) and an
+audio clip (MP3, OGG, WAV, FLAC, WebM, M4A), up to 20 MB each. The file type is detected from the content, not
+trusted from the browser. Facts come from the user's existing "Facts" field, one per line. Assets are stored
 in the `dossier` database table and served only to the recipient's Santa.
 
 ### Santa's voice clips
@@ -54,8 +56,9 @@ survive redeploys. A clip goes out of date when its text changes or the particip
 up-to-date clips are played.
 
 On first start the texts are seeded from `scripts/santa-audio/lines.json`. `yarn santa-audio` still works as an
-offline alternative: mp3s it writes to `public/audio/santa/` are imported into the database on the next start
-when that slot has no clip or an older one.
+offline alternative: mp3s it writes to `scripts/santa-audio/clips/` are imported into the database on the next start
+when that slot has no clip or an older one. That folder is not served; every clip, including name clips, is only
+reachable through the signed, unguessable URL the app hands out (`/santa-audio/<id>.<time>.<signature>.mp3`).
 
 The browser rotates through the clips: a counter in `localStorage` advances on every accepted mission, so
 refreshing the page gives a different intro, name-line variant and outro. A hand-uploaded clip in the
@@ -65,7 +68,23 @@ dossier (admin page) is still played when a participant has no generated name cl
 
 Source code is available in [Github - https://github.com/jaansusi/secretsanta](https://github.com/jaansusi/secretsanta)
 
+## Security
+
+See [docs/SECURITY-AUDIT.md](docs/SECURITY-AUDIT.md) for the latest audit, what was fixed and the known
+residual risks. In short:
+
+- Participant sessions (`santa_session`) and admin sessions (`santa_admin`) are signed, `HttpOnly`,
+  `SameSite=Lax` cookies (`Secure` when `HOST` is https) with server-enforced expiry. The app refuses to start in
+  production without a random `COOKIE_SECRET` of at least 32 characters.
+- State-changing requests must come from the app's own origin. Signing out is a POST.
+- A strict Content-Security-Policy allows no inline script. Front-end libraries are served from npm packages
+  under `/vendor`, not from a CDN.
+- Decryption codes are kept out of logs and URLs (a `?code=` link is exchanged for a session and redirected).
+
 ## Run in development mode
+
+Requires Node.js 24.9 or newer (Node 26 LTS is what the Docker image and CI use). NestJS 12 is ESM-only and
+Jest can only load it on Node >= 24.9.
 
 1. Install the dependencies:
     ```sh
@@ -123,12 +142,25 @@ The following environment variables are required:
 
 - `NODE_ENV`: The environment in which the application is running (e.g., `development`, `production`).
 - `PORT`: The port on which the application will run (inside the container, if applicable).
-- `HOST`: The host address, used for Google auth callback.
+- `HOST`: The absolute public URL including the port when it is not 80/443 (e.g. `https://santa.example.com`).
+  Used for the Google auth callback, personal links and the same-origin check on POST/PUT/PATCH/DELETE requests.
+  With `https` the cookies get the `Secure` flag and HSTS is sent.
 - `GOOGLE_CLIENT_ID`: Google OAuth Client ID.
 - `GOOGLE_CLIENT_SECRET`: Google OAuth Client Secret.
-- `COOKIE_SECRET`: Secret key for signing cookies. Required for admin sign-in.
-- `ADMIN_EMAIL`: Google account that is always made an admin.
-- `ADMIN_TIME_ZONE` (optional): Time zone for analytics days and hours, default `Europe/Tallinn`.
+- `COOKIE_SECRET`: Signs the session cookies. At least 32 random characters (`openssl rand -base64 48`).
+  Rotating it signs everyone out.
+- `ADMIN_EMAIL`: Google account (verified email) that is always made an admin.
+
+Optional:
+
+- `ADMIN_TIME_ZONE`: Time zone for analytics days and hours, default `Europe/Tallinn`.
+- `TRUST_PROXY`: Number of reverse proxies in front of the app (e.g. `1` behind an ingress). Needed for per-client
+  rate limiting.
+- `LOG_LEVEL`: `error`, `warn`, `info` or `debug` (default `info` in production).
+- `DB_SSL` / `DB_SSL_CA`: `true` to require a verified TLS connection to Postgres; PEM CA for a private CA.
+- `DB_LOGGING`: `true` logs every SQL statement. Local debugging only, since statements contain decryption codes.
+- `STORE_DEBUG_ASSIGNMENTS`: `true` (with `NODE_ENV=development`) stores a plaintext copy of each assignment.
+- `GOOGLE_DOC_LETTER_LINK`: https URL of the letter on `/kiri` (overridable in admin settings, https only).
 
 ## Scripts
 

@@ -1,22 +1,16 @@
-function getCookie(name) {
-    var dc = document.cookie;
-    var prefix = name + "=";
-    var begin = dc.indexOf("; " + prefix);
-    if (begin == -1) {
-        begin = dc.indexOf(prefix);
-        if (begin != 0) return null;
+// The session cookie is httpOnly (not readable from script), so the server renders the login state and
+// the clip playlist into data-* attributes on <body> (no inline script, so the CSP can forbid it).
+const pageState = document.body.dataset;
+const isLoggedIn = pageState.loggedIn === 'true';
+window.SANTA_CLIPS = (function () {
+    try {
+        return pageState.santaClips ? JSON.parse(pageState.santaClips) : null;
+    } catch (e) {
+        return null;
     }
-    else {
-        begin += 2;
-        var end = document.cookie.indexOf(";", begin);
-        if (end == -1) {
-            end = dc.length;
-        }
-    }
-    return decodeURI(dc.substring(begin + prefix.length, end));
-}
+})();
 
-if (getCookie('santa_auth') !== null) {
+if (isLoggedIn) {
     document.getElementById('logoutContainer').classList.remove('hidden');
 }
 
@@ -101,7 +95,16 @@ function acceptMission() {
         body: JSON.stringify({
             code: document.getElementById('userCode').value
         }),
-    }).then(res => res.json()).then(res => {
+    }).then(async response => {
+        const body = await response.json().catch(() => ({}));
+        if (response.status === 429) {
+            return { error: 'Liiga palju katseid, oota hetk ja proovi uuesti.' };
+        }
+        if (!response.ok && !body.error) {
+            return { error: 'Midagi läks valesti, proovi uuesti.' };
+        }
+        return body;
+    }).then(res => {
         if (res.error) {
             briefing.pause();
             showBriefingError(res.error);
@@ -232,6 +235,16 @@ function isInWebView() {
 }
 
 window.addEventListener("load", (event) => {
+    const bind = (id, eventName, handler) => {
+        const element = document.getElementById(id);
+        if (element) element.addEventListener(eventName, handler);
+    };
+    bind('submit', 'click', acceptMission);
+    bind('showCodeLink', 'click', toggleCodeInput);
+    bind('replayButton', 'click', () => playBriefing());
+    bind('copyContainer', 'click', () => copyTextToClipboard(window.location.href));
+    bind('googleAuthButton', 'click', () => { location.href = '/auth/google'; });
+
     const togglePassword = document.querySelector('#toggleUserCodeVisibility');
     if (togglePassword !== null) {
         togglePassword.addEventListener('click', function () {
@@ -247,7 +260,7 @@ window.addEventListener("load", (event) => {
 
     const pageUrl = document.getElementById('pageUrl');
     if (pageUrl) {
-        pageUrl.innerHTML = window.location.href;
+        pageUrl.textContent = window.location.href;
         if (isInWebView()) {
             document.getElementById('googleAuthButton').classList.add('hidden');
             document.getElementById('webViewWarning').classList.remove('hidden');
@@ -255,7 +268,7 @@ window.addEventListener("load", (event) => {
     }
 
     // Let the first clip buffer while the user reads the sound notice.
-    if (getCookie('santa_auth') !== null) {
+    if (isLoggedIn) {
         const briefing = document.getElementById('briefingPlayer');
         if (briefing) briefing.src = hasClipLibrary() ? clipUrl('intro', clipRotation().intro) : briefingSource();
     }

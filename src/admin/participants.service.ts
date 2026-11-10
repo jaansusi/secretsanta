@@ -170,7 +170,7 @@ export class ParticipantsService {
                     } catch { /* unreadable assignment, the draw check reports it */ }
                     if (recipient === user.name) {
                         const assignment = this.encryptionService.reencryptGiftingTo(santa, input.name!);
-                        if (process.env.NODE_ENV === 'development') {
+                        if (process.env.NODE_ENV === 'development' && process.env.STORE_DEBUG_ASSIGNMENTS === 'true') {
                             assignment.giftingToDebug = input.name!;
                         }
                         await this.userRepository.update(assignment, { where: { id: santa.id }, transaction });

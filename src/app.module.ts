@@ -1,4 +1,6 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { HomeController } from './home/home.controller';
 import { ConfigModule } from '@nestjs/config';
 import { UserModule } from './user/user.module';
@@ -10,6 +12,8 @@ import { EncryptionModule } from './encryption/encryption.module';
 import { DossierModule } from './dossier/dossier.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { SettingsModule } from './settings/settings.module';
+import { SessionModule } from './auth/session.module';
+import { DEFAULT_THROTTLE } from './security/throttle';
 
 
 @Module({
@@ -17,6 +21,8 @@ import { SettingsModule } from './settings/settings.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ThrottlerModule.forRoot([DEFAULT_THROTTLE]),
+    SessionModule,
     UserModule,
     AdminModule,
     AuthModule,
@@ -27,6 +33,9 @@ import { SettingsModule } from './settings/settings.module';
     SequelizeModule.forRootAsync(dataBaseConfig)
   ],
   controllers: [HomeController],
-  providers: [],
+  providers: [
+    Logger,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}

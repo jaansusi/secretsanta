@@ -13,6 +13,7 @@ import { sendAsset } from 'src/dossier/dossier.controller';
 import { AuditService } from 'src/audit/audit.service';
 import { ParticipantsService } from '../participants.service';
 import { readString } from './input';
+import { detectAssetType } from 'src/dossier/file-type';
 
 const MAX_ASSET_BYTES = 20 * 1024 * 1024;
 
@@ -107,7 +108,7 @@ export class ParticipantsController {
     }
 
     @Post(':id/dossier/:kind')
-    @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_ASSET_BYTES, files: 1 } }))
+    @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_ASSET_BYTES, files: 1, fields: 0, parts: 2 } }))
     async uploadAsset(
         @CurrentAdmin() admin: User,
         @Param('id', ParseIntPipe) id: number,
@@ -118,16 +119,22 @@ export class ParticipantsController {
         if (!file || !file.buffer || file.size === 0) {
             throw new BadRequestException('No file uploaded');
         }
-        const expectedPrefix = assetKind === 'photo' ? 'image/' : 'audio/';
-        if (!file.mimetype.startsWith(expectedPrefix)) {
-            throw new BadRequestException(`Expected a ${expectedPrefix}* file, got ${file.mimetype}`);
+        // The declared mimetype is client-controlled (an "image" can be SVG with script in it):
+        // store only allowed formats, with the type detected from the content.
+        const detectedType = detectAssetType(file.buffer, assetKind);
+        if (!detectedType) {
+            throw new BadRequestException(
+                assetKind === 'photo'
+                    ? 'Unsupported image: use JPEG, PNG, GIF, WebP, AVIF or HEIC.'
+                    : 'Unsupported audio: use MP3, OGG, WAV, FLAC, WebM or M4A.',
+            );
         }
         const user = await this.participantsService.require(id);
-        await this.dossierService.saveAsset(id, assetKind, file.buffer, file.mimetype);
+        await this.dossierService.saveAsset(id, assetKind, file.buffer, detectedType);
         await this.auditService.log(admin, {
             action: 'dossier.upload', entityType: 'participant', entityId: id,
             summary: `Uploaded a ${assetKind} for ${user.name}`,
-            details: { bytes: file.size, mimeType: file.mimetype, fileName: file.originalname },
+            details: { bytes: file.size, mimeType: detectedType, fileName: file.originalname.slice(0, 200) },
         });
         return this.participantsService.detail(id);
     }

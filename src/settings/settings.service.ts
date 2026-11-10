@@ -97,11 +97,20 @@ export class SettingsService implements OnModuleInit {
             if (key === 'exchangeDate' && text && !/^\d{4}-\d{2}-\d{2}$/.test(text)) {
                 throw new BadRequestException('exchangeDate must be YYYY-MM-DD');
             }
-            if (key === 'letterUrl' && text && !/^https?:\/\//i.test(text)) {
-                throw new BadRequestException('letterUrl must start with http:// or https://');
+            // Embedded in an iframe on /kiri and allowed by the CSP frame-src: https only.
+            if (key === 'letterUrl' && text && !isHttpsUrl(text)) {
+                throw new BadRequestException('letterUrl must be an https:// address');
             }
             return text;
         }
         return value;
+    }
+}
+
+function isHttpsUrl(text: string): boolean {
+    try {
+        return new URL(text).protocol === 'https:';
+    } catch {
+        return false;
     }
 }

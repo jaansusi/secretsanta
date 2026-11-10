@@ -1,60 +1,60 @@
 import { GoogleOAuthGuard } from './google-oauth.guard';
-import { Controller, Get, UseGuards, Req, Redirect } from '@nestjs/common';
-import { Request } from 'express';
+import { Controller, Get, Logger, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { AnalyticsService } from 'src/analytics/analytics.service';
-import { endAdminSession, RETURN_TO_COOKIE, startAdminSession } from './admin-session';
+import { ADMIN_RETURN_PATH, endAdminSession, RETURN_TO_COOKIE, startAdminSession } from './admin-session';
+import { SessionService } from './session.service';
+import { GoogleUser } from './google.strategy';
 
 @Controller('auth')
 export class AuthController {
     constructor(
         private readonly authService: AuthService,
         private readonly analyticsService: AnalyticsService,
+        private readonly sessionService: SessionService,
+        private readonly logger: Logger,
     ) { }
 
     @Get('google')
     @UseGuards(GoogleOAuthGuard)
-    async googleAuth() { }
+    googleAuth() {
+        // The guard redirects to Google.
+    }
 
     @Get('google-redirect')
     @UseGuards(GoogleOAuthGuard)
-    @Redirect('/')
-    async googleAuthRedirect(@Req() req: Request): Promise<any> {
-        const returnTo = req.cookies?.[RETURN_TO_COOKIE];
-        const adminReturn = typeof returnTo === 'string' && returnTo.startsWith('/admin') ? returnTo : null;
-        if (req.res && returnTo) {
-            req.res.clearCookie(RETURN_TO_COOKIE);
-        }
+    async googleAuthRedirect(@Req() req: Request, @Res() res: Response) {
+        const returnTo = req.signedCookies?.[RETURN_TO_COOKIE];
+        const adminReturn = typeof returnTo === 'string' && ADMIN_RETURN_PATH.test(returnTo) ? returnTo : null;
+        res.clearCookie(RETURN_TO_COOKIE);
+        let target = '/';
         try {
-            const user = await this.authService.getUserWithGoogleLogin(req);
-            if (req.res == null || user == null) {
+            const user = await this.authService.getUserWithGoogleLogin(req.user as GoogleUser | undefined);
+            if (user == null) {
                 await this.analyticsService.track('login_failed', req);
-                return adminReturn ? { url: '/admin?error=unknown' } : { result: 'Authentication failed.' };
+                target = adminReturn ? '/admin?error=unknown' : '/';
+            } else {
+                this.sessionService.start(res, user);
+                if (user.isAdmin) {
+                    startAdminSession(res, user);
+                }
+                await this.analyticsService.track('login_google', req, { userId: user.id });
+                if (adminReturn) {
+                    target = user.isAdmin ? adminReturn : '/admin?error=forbidden';
+                }
             }
-            req.res.cookie('santa_auth', user.id, { maxAge: 5184000000, httpOnly: false });
-            req.res.cookie('santa_auth_provider', 'google', { maxAge: 5184000000, httpOnly: false });
-            if (user.isAdmin) {
-                startAdminSession(req.res, user);
-            }
-            await this.analyticsService.track('login_google', req, { userId: user.id });
-            if (adminReturn) {
-                return { url: user.isAdmin ? adminReturn : '/admin?error=forbidden' };
-            }
-            return { result: user.giftingTo, success: true };
         } catch (error) {
-            return { result: error.message };
+            this.logger.error(`Google login failed: ${error.message}`);
         }
+        res.redirect(303, target);
     }
 
-    @Get('logout')
-    @Redirect('/')
-    async logout(@Req() req: Request) {
-        if (req.res == null) {
-            return { success: false };
-        }
-        req.res.clearCookie('santa_auth');
-        req.res.clearCookie('santa_auth_provider');
-        endAdminSession(req.res);
-        return { success: true };
+    /** POST so that a cross-site link or image cannot log people out. Ends the admin session too. */
+    @Post('logout')
+    logout(@Res() res: Response) {
+        this.sessionService.end(res);
+        endAdminSession(res);
+        res.redirect(303, '/');
     }
 }

@@ -17,7 +17,8 @@ export class WinstonLoggerService implements LoggerService {
                     ),
                 }),
             ],
-            level: 'debug',
+            // Debug output is opt-in: it is noisy and can include request details.
+            level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
         });
     }
 

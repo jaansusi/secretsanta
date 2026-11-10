@@ -104,13 +104,15 @@ code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monosp
 .brand-text small { font-weight: 500; color: var(--muted); font-size: 12px; }
 .nav { display: flex; flex-direction: column; gap: 1px; }
 .nav-group { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 14px 10px 6px; }
-.nav a, .sidebar-footer a {
+.nav a, .sidebar-footer a, .sidebar-button {
     display: flex; align-items: center; gap: 10px;
     padding: 7px 10px; border-radius: 6px;
     color: var(--ink-2); font-weight: 500;
 }
-.nav a i, .sidebar-footer a i { font-size: 15px; width: 18px; text-align: center; color: var(--muted); }
-.nav a:hover, .sidebar-footer a:hover { background: var(--surface-hover); text-decoration: none; color: var(--ink); }
+/* Sign-out is a POST form; its button looks like the links around it. */
+.sidebar-button { width: 100%; background: none; border: 0; font: inherit; text-align: left; cursor: pointer; }
+.nav a i, .sidebar-footer a i, .sidebar-button i { font-size: 15px; width: 18px; text-align: center; color: var(--muted); }
+.nav a:hover, .sidebar-footer a:hover, .sidebar-button:hover { background: var(--surface-hover); text-decoration: none; color: var(--ink); }
 .nav a.active { background: var(--accent-soft); color: var(--accent-ink); }
 .nav a.active i { color: var(--accent-ink); }
 .sidebar-footer { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 1px; }
