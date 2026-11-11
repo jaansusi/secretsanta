@@ -102,6 +102,14 @@ Jest can only load it on Node >= 24.9.
 
 ## Running the Application in production mode
 
+### Deployment (santa.susid.ee)
+
+Production runs on the home-infra k3s cluster, reconciled by Argo CD from
+`apps/secretsanta/` in the home-infra repo (runbook: `apps/secretsanta/README.md` there).
+Every push to `master` builds `ghcr.io/jaansusi/secretsanta:<YYYYMMDD>-<short sha>`; the tag
+is shown at the top of the build run. Building does not deploy: set the new tag in
+`apps/secretsanta/deployment.yaml` and push home-infra.
+
 ### Using Docker
 
 1. Build and run the database Docker container

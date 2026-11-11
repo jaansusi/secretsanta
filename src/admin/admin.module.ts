@@ -20,6 +20,8 @@ import { OverviewService } from './overview.service';
 import { AudioController } from './api/audio.controller';
 import { FactsController } from './api/facts.controller';
 import { SantaAudioModule } from 'src/santa-audio/santa-audio.module';
+import { ImportController } from './api/import.controller';
+import { ImportService } from './import/import.service';
 
 @Module({
     imports: [
@@ -32,7 +34,7 @@ import { SantaAudioModule } from 'src/santa-audio/santa-audio.module';
         SettingsModule,
         SantaAudioModule,
     ],
-    controllers: [AdminPageController, ParticipantsController, FamiliesController, DrawController, InsightsController, AudioController, FactsController],
-    providers: [DrawService, ParticipantsService, FamiliesService, OverviewService, Logger],
+    controllers: [AdminPageController, ParticipantsController, FamiliesController, DrawController, InsightsController, AudioController, FactsController, ImportController],
+    providers: [DrawService, ParticipantsService, FamiliesService, OverviewService, ImportService, Logger],
 })
 export class AdminModule { }

@@ -42,3 +42,7 @@ lerna-debug.log*
 
 # TypeScript incremental build info
 *.tsbuildinfo
+
+# Local env files with real credentials (e.g. .env.unraid); only the template is committed.
+.env.*
+!.env.template

@@ -2,13 +2,14 @@
 #
 # Runs on GitHub-hosted runners (free for a public repo) and pushes to
 # ghcr.io/jaansusi/secretsanta. No registry secret is needed: the workflow's
-# own GITHUB_TOKEN can push packages owned by this repo. After the FIRST push
-# set the package to public (GitHub -> Packages -> secretsanta -> Package
-# settings -> Change visibility), otherwise the cluster needs a pull secret.
+# own GITHUB_TOKEN can push packages owned by this repo. The package is
+# public, so the home-infra cluster pulls it anonymously (no pull secret);
+# keep it public, or the deployment stops pulling new tags.
 #
 # Tag = <YYYYMMDD>-<short sha> in Tallinn time. Unique per commit, sortable,
-# never reused. The deployment manifest in home-infra pins this tag; `latest`
-# is deliberately not published so nothing can run an unpinned image.
+# never reused. home-infra apps/secretsanta/deployment.yaml pins this tag
+# (bump it there and push home-infra to deploy); `latest` is deliberately
+# not published so nothing can run an unpinned image.
 #
 # Third-party actions are pinned to full commit SHAs (a tag can be moved to
 # malicious code; a SHA cannot). Dependabot keeps the pins current.

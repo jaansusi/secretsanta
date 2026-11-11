@@ -1,7 +1,9 @@
 export class ApiError extends Error {
-    constructor(message, status) {
+    constructor(message, status, details = null) {
         super(message);
         this.status = status;
+        /** Every message when the server returned a list of them (e.g. all problems in an import file). */
+        this.details = details;
     }
 }
 
@@ -30,7 +32,7 @@ export async function api(path, { method = 'GET', body, form } = {}) {
     try { data = text ? JSON.parse(text) : null; } catch { data = null; }
     if (!response.ok) {
         const message = Array.isArray(data?.message) ? data.message.join(', ') : data?.message;
-        throw new ApiError(message || `Request failed (${response.status})`, response.status);
+        throw new ApiError(message || `Request failed (${response.status})`, response.status, Array.isArray(data?.message) ? data.message : null);
     }
     return data;
 }

@@ -7,7 +7,7 @@ const EVENT_ICONS = {
     reveal: 'envelope-open', reveal_error: 'exclamation-octagon', reveal_closed: 'lock', letter_view: 'envelope-paper',
     briefing_complete: 'soundwave', briefing_replay: 'arrow-repeat', autoplay_blocked: 'volume-mute',
 };
-const AUDIT_ICONS = { participant: 'person', family: 'house-heart', settings: 'gear', draw: 'shuffle', dossier: 'folder2-open' };
+const AUDIT_ICONS = { participant: 'person', family: 'house-heart', settings: 'gear', draw: 'shuffle', dossier: 'folder2-open', data: 'box-arrow-in-down' };
 
 export function eventLabel(eventTypes, type) {
     return eventTypes?.[type] || type;
