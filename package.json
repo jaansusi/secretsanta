@@ -63,7 +63,7 @@
     "eslint-plugin-prettier": "^5.5",
     "globals": "^17.14.0",
     "jest": "^30",
-    "prettier": "^3.9",
+    "prettier": "^3.10",
     "ts-jest": "^29.4",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8"
