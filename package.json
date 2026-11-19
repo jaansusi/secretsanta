@@ -34,7 +34,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "cookie-parser": "^1.4",
-    "express-handlebars": "^9.0.4",
+    "express-handlebars": "^9.0.6",
     "helmet": "^8.3.0",
     "nest-winston": "^2",
     "passport": "^0.7",
