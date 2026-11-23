@@ -32,7 +32,7 @@ function setup(people: Array<Partial<FakeUser> & { id: number; name: string }>) 
     };
     const familyIds = [...new Set(users.map(u => u.familyId).filter(Boolean))] as number[];
     const familyRepository = { findAll: async () => familyIds.map(id => ({ id, name: `Family ${id}` })) };
-    const sequelize = { transaction: async (fn: (t: object) => Promise<void>) => fn({}) };
+    const sequelize = { transaction: async (fn: (t: object) => Promise<unknown>) => fn({ LOCK: { UPDATE: 'UPDATE' } }) };
     const audit = { log: jest.fn(), lastOccurrence: async () => null };
     const encryption = new EncryptionService();
     const service = new DrawService(userRepository as any, familyRepository as any, sequelize as any, encryption, audit as any, new Logger());
@@ -124,6 +124,57 @@ describe('DrawService', () => {
         expect(first.every(u => u.giftingTo === '')).toBe(true);
         expect(other).toEqual(otherDraw);
         expect((await service.status(2)).state).toBe('valid');
+    });
+});
+
+describe('DrawService: adding a latecomer', () => {
+    const chain = (users: FakeUser[], encryption: EncryptionService) => {
+        const byName = new Map(users.map(u => [u.name, u]));
+        return new Map(users.filter(u => u.giftingTo).map(u => [u.id, byName.get(encryption.decryptGiftingTo(u as any))!.id]));
+    };
+
+    it('splices them in after one Santa and leaves everyone else, and every link, as it was', async () => {
+        const { service, users, encryption } = setup([{ id: 1, name: 'Ann' }, { id: 2, name: 'Ben' }, { id: 3, name: 'Cat' }, { id: 4, name: 'Dan' }]);
+        await service.run(actor, GROUP);
+        const before = chain(users, encryption);
+        const codes = new Map(users.map(u => [u.id, u.decryptionCode]));
+        users.push({ id: 5, groupId: GROUP, name: 'Liz', familyId: null, lastYearGiftingToId: null, encryptionStrategy: 'code', giftingTo: '', decryptionCode: '', iv: '', email: '' });
+
+        const candidates = await service.insertionCandidates(GROUP, 5);
+        expect(candidates.map(u => u.id).sort()).toEqual([1, 2, 3, 4]);
+        await service.insert(actor, GROUP, 5, 2, true);
+
+        const after = chain(users, encryption);
+        expect(after.get(2)).toBe(5);
+        expect(after.get(5)).toBe(before.get(2));
+        for (const id of [1, 3, 4]) expect(after.get(id)).toBe(before.get(id));
+        for (const id of [1, 2, 3, 4]) expect(users.find(u => u.id === id)!.decryptionCode).toBe(codes.get(id));
+        expect(users.find(u => u.id === 5)!.decryptionCode).toMatch(/.{20,}/);
+        expect((await service.status(GROUP)).state).toBe('valid');
+    });
+
+    it('only offers Santas that follow the family and last-year rules both ways', async () => {
+        const { service, users, encryption } = setup([
+            { id: 1, name: 'Ann', familyId: 1 }, { id: 2, name: 'Ben' }, { id: 3, name: 'Cat', familyId: 2 },
+            { id: 4, name: 'Dan', familyId: 2 }, { id: 5, name: 'Eve', lastYearGiftingToId: 6 },
+        ]);
+        await service.run(actor, GROUP);
+        users.push({ id: 6, groupId: GROUP, name: 'Liz', familyId: 1, lastYearGiftingToId: 2, encryptionStrategy: 'code', giftingTo: '', decryptionCode: '', iv: '', email: '' });
+        const links = chain(users, encryption);
+        const allowed = (await service.insertionCandidates(GROUP, 6)).map(u => u.id);
+        for (const santa of [1, 2, 3, 4, 5]) {
+            const recipient = links.get(santa)!;
+            const ok = santa !== 1 && santa !== 5 && recipient !== 1 && recipient !== 2;
+            expect(allowed.includes(santa)).toBe(ok);
+        }
+        await expect(service.insert(actor, GROUP, 6, 1, true)).rejects.toThrow('cannot give to them');
+    });
+
+    it('refuses before a draw, and for someone already in it', async () => {
+        const { service } = setup([{ id: 1, name: 'Ann' }, { id: 2, name: 'Ben' }, { id: 3, name: 'Cat' }]);
+        await expect(service.insertionCandidates(GROUP, 3)).rejects.toThrow('has not been run');
+        await service.run(actor, GROUP);
+        await expect(service.insertionCandidates(GROUP, 3)).rejects.toThrow('already in the draw');
     });
 });
 

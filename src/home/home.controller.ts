@@ -51,6 +51,8 @@ export class HomeController {
     if (user && user.encryptionStrategy === EncryptionStrategy.CODE) {
       await this.analyticsService.track('page_view', request, { userId: user.id });
       return response.render('index', {
+        // No code until a draw has included them, so there is no mission to open yet.
+        waiting: !user.decryptionCode,
         encryptionWithCode: true,
         inputType: 'password',
         prefill: user.decryptionCode,

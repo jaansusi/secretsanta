@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import { randomInt } from 'crypto';
 import { User } from 'src/user/entities/user.entity';
 import { Family } from 'src/family/entities/family.entity';
 import { Dossier } from 'src/dossier/entities/dossier.entity';
@@ -139,7 +140,7 @@ export class ParticipantsService {
             summary: `Added ${user.name}`,
         });
         const warnings = (await this.drawService.status(groupId)).state !== 'not_drawn'
-            ? ['The draw has already been run. Run it again so this person is included.']
+            ? ['The draw has already been run. Add this person to it on their page, or run the draw again.']
             : [];
         return { participant: await this.detail(groupId, user.id), warnings };
     }
@@ -242,6 +243,52 @@ export class ParticipantsService {
         }
         const recipient = await this.userRepository.findOne({ where: { groupId, name: recipientName } });
         return { user, recipientName, recipientId: recipient?.id ?? null };
+    }
+
+    /**
+     * Who can give to a latecomer (see DrawService.insert), each with whether they already opened their mission:
+     * their recipient changes, so someone who has not looked yet is the painless choice.
+     */
+    public async drawOptions(groupId: number, id: number) {
+        const since = await this.drawService.currentSeasonStart(groupId);
+        const [candidates, activity] = await Promise.all([
+            this.drawService.insertionCandidates(groupId, id),
+            this.analyticsService.participantActivity(groupId, since),
+        ]);
+        return {
+            santas: candidates
+                .map(santa => ({ id: santa.id, name: santa.name, openedAt: activity.get(santa.id)?.firstReveal ?? null }))
+                .sort((a, b) => Number(!!a.openedAt) - Number(!!b.openedAt) || a.name.localeCompare(b.name)),
+        };
+    }
+
+    /**
+     * Adds a latecomer to the existing draw. With `santaId` that Santa gives to them; without it a random one who
+     * has not opened their mission yet (or, failing that, anyone allowed) is picked and not shown to the admin.
+     */
+    public async addToDraw(actor: AuditActor, groupId: number, id: number, body: any) {
+        const santaId = readOptionalId(body, 'santaId') ?? null;
+        const { santas } = await this.drawOptions(groupId, id);
+        if (!santas.length) {
+            throw new BadRequestException('Nobody can give to them under the family and last-year rules. Run the draw again instead.');
+        }
+        const warnings: string[] = [];
+        let chosen = santas.find(santa => santa.id === santaId);
+        if (santaId !== null && !chosen) {
+            throw new BadRequestException('That person cannot give to them: check families, last year\'s recipients and the draw.');
+        }
+        if (!chosen) {
+            const unopened = santas.filter(santa => !santa.openedAt);
+            const pool = unopened.length ? unopened : santas;
+            chosen = pool[randomInt(pool.length)];
+            if (!unopened.length) {
+                warnings.push(`Everyone who could give to them has already opened their mission. ${chosen.name} now gives to them instead: let ${chosen.name} know their mission changed.`);
+            }
+        } else if (chosen.openedAt) {
+            warnings.push(`${chosen.name} had already opened their mission. Let them know they now give to someone else.`);
+        }
+        await this.drawService.insert(actor, groupId, id, chosen.id, santaId !== null || !!warnings.length);
+        return { participant: await this.detail(groupId, id), warnings };
     }
 
     /** A participant of this group; one of another group is "not found", never revealed. */

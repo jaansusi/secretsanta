@@ -38,6 +38,16 @@
 
       {{#if encryptionWithCode}}
       <div class="briefing" id="inputContainer">
+        {{#if waiting}}
+        {{!-- Signed in, but not in a draw yet: no code, so nothing to open (the button would only fail). --}}
+        <div class="briefing-greeting">Tere, {{userName}}!</div>
+        <h2 class="briefing-title briefing-headline">
+          <i class="bi bi-hourglass-split"></i> Vara veel, jõuluvana alles mõtleb.
+        </h2>
+        <div class="briefing-small">
+          <a href="/labyrint">Labürint</a>
+        </div>
+        {{else}}
         {{#if loggedIn}}
         <div class="briefing-greeting">Tere, {{userName}}!</div>
         <h2 class="briefing-title briefing-headline">
@@ -89,6 +99,7 @@
         <div class="briefing-small">
           <a href="#" id="showCodeLink">Näita koodi</a> · <a href="/labyrint">Labürint</a>
         </div>
+        {{/if}}
         {{/if}}
       </div>
       {{/if}}

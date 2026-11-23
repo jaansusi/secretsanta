@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import * as crypto from 'crypto';
@@ -314,6 +314,86 @@ export class DrawService {
             dbHash,
             checks,
         };
+    }
+
+    /**
+     * Who a latecomer (someone without a recipient after the draw) can be added after. Adding them after Santa X
+     * splits one link of the chain: X gives to the latecomer, and the latecomer takes over X's old recipient Y.
+     * X qualifies when both new links follow the rules (family, last year). Y is never returned.
+     */
+    public async insertionCandidates(groupId: number, latecomerId: number): Promise<User[]> {
+        const users = await this.loadUsers(groupId);
+        return this.insertionPoints(users, this.requireLatecomer(users, latecomerId)).map(point => point.santa);
+    }
+
+    /**
+     * Adds a latecomer to the existing draw after the given Santa (see insertionCandidates), without touching
+     * anyone else. The Santa keeps their code and link, only their recipient changes; the latecomer gets a new
+     * code. The audit entry names the Santa only when the admin chose them (`revealSanta`).
+     */
+    public async insert(actor: AuditActor, groupId: number, latecomerId: number, santaId: number, revealSanta: boolean) {
+        const { latecomer, santa } = await this.sequelize.transaction(async transaction => {
+            const users = await this.userRepository.findAll({ where: { groupId }, order: [['id', 'ASC']], transaction, lock: transaction.LOCK.UPDATE });
+            const latecomer = this.requireLatecomer(users, latecomerId);
+            const point = this.insertionPoints(users, latecomer).find(candidate => candidate.santa.id === santaId);
+            if (!point) {
+                throw new BadRequestException('That person cannot give to them: check families, last year\'s recipients and the draw.');
+            }
+            const debug = process.env.NODE_ENV === 'development' && process.env.STORE_DEBUG_ASSIGNMENTS === 'true';
+            const own = await this.encryptionService.encryptGiftingTo(latecomer, point.recipient.name);
+            const santaAssignment = this.encryptionService.reencryptGiftingTo(point.santa, latecomer.name);
+            if (debug) {
+                own.giftingToDebug = point.recipient.name;
+                santaAssignment.giftingToDebug = latecomer.name;
+            }
+            await this.userRepository.update(own, { where: { id: latecomer.id }, transaction });
+            await this.userRepository.update(santaAssignment, { where: { id: point.santa.id }, transaction });
+            return { latecomer, santa: point.santa };
+        });
+        await this.auditService.log(actor, {
+            groupId,
+            action: 'draw.insert',
+            entityType: 'participant',
+            entityId: latecomer.id,
+            summary: revealSanta
+                ? `Added ${latecomer.name} to the draw: ${santa.name} now gives to them`
+                : `Added ${latecomer.name} to the draw`,
+            details: revealSanta ? { santaId: santa.id } : undefined,
+        });
+        return santa;
+    }
+
+    private requireLatecomer(users: User[], latecomerId: number): User {
+        const latecomer = users.find(user => user.id === latecomerId);
+        if (!latecomer) {
+            throw new NotFoundException('Participant not found');
+        }
+        if (latecomer.giftingTo) {
+            throw new BadRequestException(`${latecomer.name} is already in the draw`);
+        }
+        if (latecomer.encryptionStrategy !== EncryptionStrategy.CODE) {
+            throw new BadRequestException(`${latecomer.name} uses an encryption strategy that cannot be drawn`);
+        }
+        if (!users.some(user => user.giftingTo)) {
+            throw new BadRequestException('The draw has not been run yet: run it to include everyone.');
+        }
+        return latecomer;
+    }
+
+    /** Every link Santa -> recipient the latecomer can be put into, following the draw's rules both ways. */
+    private insertionPoints(users: User[], latecomer: User): { santa: User; recipient: User }[] {
+        const byName = new Map(users.map(user => [user.name, user]));
+        const forbidden = this.forbiddenMap(users.map(toNode));
+        const points: { santa: User; recipient: User }[] = [];
+        for (const santa of users) {
+            if (santa.id === latecomer.id) continue;
+            const name = this.tryDecrypt(santa);
+            const recipient = name !== null ? byName.get(name) : undefined;
+            if (!recipient || recipient.id === latecomer.id) continue;
+            if (forbidden.get(santa.id)!.has(latecomer.id) || forbidden.get(latecomer.id)!.has(recipient.id)) continue;
+            points.push({ santa, recipient });
+        }
+        return points;
     }
 
     /** Time of the group's latest draw: activity before it belongs to a previous season. */

@@ -49,6 +49,11 @@ sidebar. The panel is a small single-page app in
 - **Agency facts**: the made-up "Agentuuri andmed" lines, edited directly in the table (Enter saves and moves down, Escape undoes), with bulk paste, on/off switches and who sees each one.
 - **Santa audio**: edit Santa's lines and generate the clips with ElevenLabs, with progress and per-participant previews.
 - **Draw & links**: feasibility check, run/clear the draw, validation without revealing pairs, personal links, "start new season" (saves this year's recipients as last year's).
+  A latecomer added after the draw can be added to it on their participant page ("Add to draw") without redrawing:
+  one Santa gives to them instead and they take over that Santa's old recipient, under the same family and last-year
+  rules. Nobody else changes and every existing link keeps working. "Automatic" picks someone who has not opened their
+  mission yet and keeps the pair hidden from the admin. Until someone is in a draw, the home page tells them
+  "Vara veel, jõuluvana alles mõtleb."
 - **Analytics**: visitors, missions opened, Santa listen-through, funnel, devices, browsers, time of day, per-participant engagement.
 - **Activity log**: every admin change and every recorded site event.
 - **Settings**: open/close missions, closed message, exchange date, budget, letter link, organiser notes.

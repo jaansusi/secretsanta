@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
-import { Op, UniqueConstraintError } from 'sequelize';
+import { UniqueConstraintError } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { randomBytes } from 'crypto';
 import { Group } from 'src/group/entities/group.entity';
@@ -10,6 +10,7 @@ import { AuditActor, AuditService } from 'src/audit/audit.service';
 import { SettingsService } from 'src/settings/settings.service';
 import { EncryptionStrategy } from 'src/encryption/encryption.service';
 import { readBoolean } from 'src/admin/api/input';
+import { UserService } from 'src/user/user.service';
 import { parseSignup, SignupFormValues } from './signup-input';
 
 /** Path of the sign-up page; the code follows it. */
@@ -41,6 +42,7 @@ export class SignupService {
         @InjectConnection() private readonly sequelize: Sequelize,
         private readonly settingsService: SettingsService,
         private readonly auditService: AuditService,
+        private readonly userService: UserService,
     ) { }
 
     /** The group a sign-up code belongs to and whether it takes sign-ups, or null for an unknown code. */
@@ -184,8 +186,7 @@ export class SignupService {
         if (!this.settingsService.get(groupId).signupOpen) {
             return 'closed';
         }
-        const drawn = await this.userRepository.count({ where: { groupId, giftingTo: { [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: '' }] } } });
-        return drawn ? 'drawn' : 'open';
+        return (await this.userService.isGroupDrawn(groupId)) ? 'drawn' : 'open';
     }
 }
 

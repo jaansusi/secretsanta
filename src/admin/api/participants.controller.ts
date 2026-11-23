@@ -1,5 +1,5 @@
 import {
-    BadRequestException, Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Put, Req, Res,
+    BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Patch, Post, Put, Req, Res,
     UploadedFile, UseGuards, UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -85,6 +85,19 @@ export class ParticipantsController {
             summary: `Revealed who ${user.name} is gifting to`,
         });
         return { name: recipientName, id: recipientId };
+    }
+
+    /** Who could give to this latecomer, for adding them to the existing draw. */
+    @Get(':id/draw-options')
+    drawOptions(@CurrentGroupId() groupId: number, @Param('id', ParseIntPipe) id: number) {
+        return this.participantsService.drawOptions(groupId, id);
+    }
+
+    /** Adds a latecomer to the existing draw without redrawing anyone else. */
+    @Post(':id/add-to-draw')
+    @HttpCode(200)
+    addToDraw(@CurrentAdmin() admin: User, @CurrentGroupId() groupId: number, @Param('id', ParseIntPipe) id: number, @Body() body: any) {
+        return this.participantsService.addToDraw(admin, groupId, id, body);
     }
 
     /** Codename, mission brief and the facts list: everything text in the dossier. */

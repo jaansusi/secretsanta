@@ -5,7 +5,7 @@ import { fmtDateTime } from '../lib/format.js';
 
 const STATE = {
     valid: { icon: 'check-circle-fill', cls: 'callout-good', title: 'Draw is valid' },
-    invalid: { icon: 'x-octagon-fill', cls: 'callout-danger', title: 'Draw has problems', help: 'Usually someone was added or removed after drawing. Run the draw again.' },
+    invalid: { icon: 'x-octagon-fill', cls: 'callout-danger', title: 'Draw has problems', help: 'Usually someone was added or removed after drawing. Add a latecomer to the draw on their page, or run the draw again.' },
     not_drawn: { icon: 'hourglass', cls: '', title: 'Not drawn yet' },
 };
 

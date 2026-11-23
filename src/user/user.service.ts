@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { col, fn, where } from 'sequelize';
+import { col, fn, Op, where } from 'sequelize';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 
@@ -85,6 +85,14 @@ export class UserService {
             return null;
         }
         return this.userRepository.findOne({ where: { decryptionCode: trimmed } });
+    }
+
+    /** Whether the group's draw has been run, i.e. someone in it has a recipient. */
+    async isGroupDrawn(groupId: number): Promise<boolean> {
+        const assigned = await this.userRepository.count({
+            where: { groupId, giftingTo: { [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: '' }] } },
+        });
+        return assigned > 0;
     }
 
     public normalizeEmail(email: string) {

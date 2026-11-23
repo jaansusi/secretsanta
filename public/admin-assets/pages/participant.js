@@ -1,6 +1,6 @@
 import { api, me } from '../lib/api.js';
 import { html, mount, $, on } from '../lib/dom.js';
-import { pageHead, confirmDialog, toast, toastWarnings, setDirty, copyText, emptyState, info } from '../lib/ui.js';
+import { pageHead, confirmDialog, formDialog, toast, toastWarnings, setDirty, copyText, emptyState, info } from '../lib/ui.js';
 import { fmtBytes, fmtDateTime, relTime } from '../lib/format.js';
 import { navigate } from '../lib/router.js';
 import { auditItem, eventItem } from './shared.js';
@@ -123,7 +123,8 @@ export async function render(view, { params }) {
             <div class="card-head"><h2>This season</h2></div>
             <div class="card-body">
                 <dl class="kv">
-                    <dt>In the draw</dt><dd>${participant.hasAssignment ? html`<span class="badge badge-good">Yes</span>` : html`<span class="badge ${drawn ? 'badge-bad' : ''}">No</span>`}</dd>
+                    <dt>In the draw</dt><dd>${participant.hasAssignment ? html`<span class="badge badge-good">Yes</span>` : html`<span class="badge ${drawn ? 'badge-bad' : ''}">No</span>
+                        ${drawn ? html` <button type="button" class="btn btn-sm" id="addToDraw" title="Add them to the current draw without redrawing everyone"><i class="bi bi-person-plus"></i>Add to draw</button>` : ''}`}</dd>
                     <dt>Gifting to</dt><dd id="recipientValue">${recipientValue()}</dd>
                     <dt>Opened mission</dt><dd>${a?.firstReveal ? fmtDateTime(a.firstReveal) : html`<span class="muted">Not yet</span>`}</dd>
                     <dt>Times opened</dt><dd class="num">${a?.reveals ?? 0}</dd>
@@ -261,6 +262,51 @@ export async function render(view, { params }) {
     on(view, 'click', '#hideRecipient', () => {
         recipient = null;
         mount($('#recipientValue', view), recipientValue());
+    });
+
+    // A latecomer joins the existing chain: one Santa gives to them instead, and they take over that Santa's
+    // old recipient. Nobody else changes, and the Santa's link stays the same.
+    on(view, 'click', '#addToDraw', async (e, button) => {
+        button.disabled = true;
+        let options;
+        try {
+            options = await api(`/participants/${id}/draw-options`);
+        } catch (err) {
+            button.disabled = false;
+            return toast(err.message, 'error');
+        }
+        button.disabled = false;
+        const unopened = options.santas.filter(s => !s.openedAt).length;
+        const result = await formDialog({
+            title: `Add ${participant.name} to the draw`,
+            submitLabel: 'Add to draw',
+            body: options.santas.length ? html`
+                <p>One Santa will give to ${participant.name} instead, and ${participant.name} takes over that Santa's old recipient.
+                    Everyone else keeps their recipient, and the Santa keeps their personal link.</p>
+                <div class="field">
+                    <label for="drawSanta">Who gives to ${participant.name}</label>
+                    <select id="drawSanta" name="santaId">
+                        <option value="">${unopened ? `Automatic: someone who has not opened their mission (${unopened} can)` : 'Automatic: anyone allowed'}</option>
+                        ${options.santas.map(s => html`<option value="${s.id}">${s.name}${s.openedAt ? ` · opened their mission ${fmtDateTime(s.openedAt)}` : ' · not opened yet'}</option>`)}
+                    </select>
+                    <span class="hint">Only people allowed by the family and last-year rules are listed. Automatic keeps the pair secret from you.</span>
+                </div>
+                <p class="muted">${participant.name} then gets a personal link: send it to them.</p>`
+                : html`<div class="callout callout-warn"><i class="bi bi-exclamation-triangle"></i><span>Nobody can give to ${participant.name} under the family and last-year rules. Run the draw again instead.</span></div>`,
+            onSubmit: form => {
+                if (!options.santas.length) throw new Error('Nobody can give to them. Run the draw again instead.');
+                const value = form.elements.santaId.value;
+                return api(`/participants/${id}/add-to-draw`, { method: 'POST', body: { santaId: value ? Number(value) : null } });
+            },
+        });
+        if (!result) return;
+        participant = result.participant;
+        recipient = null;
+        refreshAll();
+        toast(`${participant.name} is in the draw`, 'info', {
+            action: { label: 'Copy their link', onClick: () => $('#copyLink', view)?.click() },
+        });
+        toastWarnings(result.warnings);
     });
 
     on(view, 'click', '#deleteParticipant', async () => {
