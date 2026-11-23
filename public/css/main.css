@@ -172,8 +172,56 @@ canvas {
     cursor: pointer;
 }
 
-/* Shown to admins on the public page. */
-/* Top corners around the centred icons: the admin link on the left (admins only), the sound switch on the right. */
+/* Group switch for people in several groups: a pill in the header row, next to the icons. */
+#navigationIconsContainer a.group-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 4px 4px 12px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.5);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    color: white;
+    font-size: 0.95em;
+    line-height: 1.4;
+}
+#navigationIconsContainer a.group-switch:hover,
+#navigationIconsContainer a.group-switch:focus-visible {
+    background: rgba(0, 0, 0, 0.7);
+}
+.group-switch-name {
+    max-width: 14em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 600;
+}
+.group-switch-action {
+    flex-shrink: 0;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: #c0392b;
+    font-size: 0.85em;
+}
+
+/* Phones: the row is shared with the corner controls, so the pill shrinks to the name and the switch icon. */
+@media (max-width: 520px) {
+    #navigationIconsContainer a.group-switch {
+        padding-left: 10px;
+        gap: 6px;
+    }
+    .group-switch > .bi-people-fill,
+    .group-switch-label {
+        display: none;
+    }
+    .group-switch-name {
+        max-width: 22vw;
+    }
+    .group-switch-action {
+        padding: 2px 7px;
+    }
+}
+
+/* Top-left corner, admins only: the admin panel link. Everything else is in the centred icon row. */
 .corner-left {
     position: fixed;
     top: 18px;
@@ -186,16 +234,6 @@ canvas {
     .admin-link-text {
         display: none;
     }
-}
-
-.corner-controls {
-    position: fixed;
-    top: 0;
-    right: 0;
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    gap: 10px;
 }
 
 .sound-toggle {

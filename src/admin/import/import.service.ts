@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
@@ -33,7 +34,8 @@ export class ImportService {
     ) { }
 
     /** Checks a data file and, unless `dryRun`, applies it in one transaction. Throws 400 with every problem found. */
-    public async run(actor: AuditActor, content: Buffer, dryRun: boolean): Promise<ImportResult> {
+    /** Imports into one group: the file's participants and families are matched against that group only. */
+    public async run(actor: AuditActor, groupId: number, content: Buffer, dryRun: boolean): Promise<ImportResult> {
         let data: unknown;
         try {
             data = JSON.parse(content.toString('utf8'));
@@ -48,8 +50,8 @@ export class ImportService {
         return this.sequelize.transaction(async transaction => {
             // Read inside the transaction so the plan matches what gets written.
             const [families, users] = await Promise.all([
-                this.familyRepository.findAll({ transaction }),
-                this.userRepository.findAll({ transaction }),
+                this.familyRepository.findAll({ where: { groupId }, transaction }),
+                this.userRepository.findAll({ where: { groupId }, transaction }),
             ]);
             const plan = planImport(
                 file,
@@ -59,6 +61,15 @@ export class ImportService {
                     giftingTo: user.giftingTo || null, decryptionCode: user.decryptionCode || null,
                 })),
             );
+            // A personal link must lead to exactly one participant, so codes cannot repeat across groups
+            // (e.g. the same export imported into two groups).
+            const codes = plan.participants.map(p => p.row.decryptionCode).filter((code): code is string => !!code);
+            if (codes.length) {
+                const elsewhere = await this.userRepository.count({ where: { decryptionCode: codes, groupId: { [Op.ne]: groupId } }, transaction });
+                if (elsewhere) {
+                    plan.errors.push(`${elsewhere} personal code${elsewhere === 1 ? ' is' : 's are'} already used in another group. Clear the assignments in the file, or run the draw again in the other group.`);
+                }
+            }
             if (plan.errors.length) {
                 throw new BadRequestException(plan.errors);
             }
@@ -85,7 +96,7 @@ export class ImportService {
 
             const familyIds = new Map<number, number>();
             for (const family of plan.families) {
-                const id = family.existingId ?? (await this.familyRepository.create({ name: family.name }, { transaction })).id;
+                const id = family.existingId ?? (await this.familyRepository.create({ groupId, name: family.name }, { transaction })).id;
                 familyIds.set(family.fileId, id);
             }
 
@@ -102,6 +113,7 @@ export class ImportService {
             for (const action of plan.participants) {
                 const row = action.row;
                 const values = {
+                    groupId,
                     name: row.name,
                     email: row.email,
                     familyId: row.familyId !== null ? familyIds.get(row.familyId)! : null,
@@ -130,6 +142,7 @@ export class ImportService {
             }
 
             await this.auditService.log(actor, {
+                groupId,
                 action: 'data.import',
                 summary: `Imported ${plan.participants.length} participants and ${plan.families.length} families`
                     + (file.source ? ` from ${file.source}` : ''),

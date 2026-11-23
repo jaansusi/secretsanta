@@ -136,11 +136,14 @@ export class MazeService {
     }
 
     /**
-     * The scoreboard. Participants see rank, name and best moves; `detailed` (admin panel only) adds
+     * One group's scoreboard. Participants see rank, name and best moves; `detailed` (admin panel only) adds
      * stars, games played and finished, and the progress of agents who have not finished yet.
      */
-    public async board(viewerId: number | null, { detailed = false } = {}): Promise<BoardView> {
-        const rows = await this.games.findAll({ attributes: ['userId', 'level', 'status', 'moveCount', 'startedAt', 'finishedAt', 'durationMs', 'cheat', 'updatedAt'] });
+    public async board(groupId: number, viewerId: number | null, { detailed = false } = {}): Promise<BoardView> {
+        const rows = await this.games.findAll({
+            where: { userId: await this.memberIds(groupId) },
+            attributes: ['userId', 'level', 'status', 'moveCount', 'startedAt', 'finishedAt', 'durationMs', 'cheat', 'updatedAt'],
+        });
         const { best, stats } = summarizeGames(rows.map(toGameRow), starsFor);
         const ranked = rankBoard(best, LEVELS.length);
         const names = await this.names([...stats.keys()]);
@@ -173,13 +176,14 @@ export class MazeService {
         };
     }
 
-    /** Admin: totals and the most recent games (with each finished game's time). */
-    public async adminSummary() {
+    /** Admin: one group's totals and most recent games (with each finished game's time). */
+    public async adminSummary(groupId: number) {
+        const userId = await this.memberIds(groupId);
         const [games, finished, players, recent] = await Promise.all([
-            this.games.count(),
-            this.games.count({ where: { status: 'finished' } }),
-            this.games.count({ distinct: true, col: 'userId' }),
-            this.games.findAll({ order: [['updatedAt', 'DESC']], limit: 15, include: [{ model: User, attributes: ['name'] }] }),
+            this.games.count({ where: { userId } }),
+            this.games.count({ where: { userId, status: 'finished' } }),
+            this.games.count({ where: { userId }, distinct: true, col: 'userId' }),
+            this.games.findAll({ where: { userId }, order: [['updatedAt', 'DESC']], limit: 15, include: [{ model: User, attributes: ['name'] }] }),
         ]);
         return {
             games,
@@ -202,9 +206,13 @@ export class MazeService {
         };
     }
 
-    /** Admin: wipes every game, e.g. after testing. */
-    public async reset(): Promise<number> {
-        return this.games.destroy({ where: {} });
+    /** Admin: wipes every game of one group, e.g. after testing. */
+    public async reset(groupId: number): Promise<number> {
+        return this.games.destroy({ where: { userId: await this.memberIds(groupId) } });
+    }
+
+    private async memberIds(groupId: number): Promise<number[]> {
+        return (await this.users.findAll({ where: { groupId }, attributes: ['id'] })).map(user => user.id);
     }
 
     private requireLevel(levelId: unknown): Level {

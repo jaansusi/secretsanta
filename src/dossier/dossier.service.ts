@@ -46,8 +46,13 @@ export class DossierService {
         return this.toSummary(userId, row);
     }
 
-    public async getAllSummaries(): Promise<Map<number, DossierSummaryDto>> {
+    /** The dossiers of the given participants (normally everyone in one group). */
+    public async getSummaries(userIds: number[]): Promise<Map<number, DossierSummaryDto>> {
+        if (!userIds.length) {
+            return new Map();
+        }
         const rows = await this.dossierRepository.findAll({
+            where: { userId: userIds },
             attributes: DossierService.SUMMARY_ATTRIBUTES,
             raw: true,
         });
@@ -113,7 +118,7 @@ export class DossierService {
         }
         try {
             const recipientName = this.encryptionService.decryptGiftingTo(santa);
-            return this.userService.getByName(recipientName);
+            return this.userService.getByName(santa.groupId, recipientName);
         } catch (err) {
             this.logger.warn(`Could not resolve recipient for user ${santa.id}: ${err.message}`);
             return null;
@@ -124,7 +129,7 @@ export class DossierService {
     public async getRevealDossier(recipient: User | null): Promise<RevealDossierDto> {
         const summary = recipient ? await this.getSummary(recipient.id) : null;
         // "Teadaolevad faktid" are only sent when the showFacts setting is on (off for 2026).
-        const facts = !this.settingsService.get().showFacts ? [] : (recipient?.interestingFacts ?? '')
+        const facts = !recipient || !this.settingsService.get(recipient.groupId).showFacts ? [] : (recipient.interestingFacts ?? '')
             .split(/\r?\n/)
             .map(line => line.trim())
             .filter(line => line.length > 0);
@@ -135,7 +140,7 @@ export class DossierService {
             hasPhoto: summary?.hasPhoto ?? false,
             hasAudio: summary?.hasAudio ?? false,
             clips: { names: await this.santaAudioService.nameClipUrls(recipient) },
-            agencyFacts: await this.agencyFactsService.forRecipient(recipient?.name),
+            agencyFacts: await this.agencyFactsService.forRecipient(recipient),
         };
     }
 

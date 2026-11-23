@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { WhereOptions } from 'sequelize';
+import { Op, WhereOptions } from 'sequelize';
 import { AuditLog } from './entities/audit-log.entity';
 
 export interface AuditActor {
@@ -9,6 +9,8 @@ export interface AuditActor {
 }
 
 export interface AuditEntry {
+    /** The group the change was made in; null for shared content (Santa audio, agency facts, the groups). */
+    groupId: number | null;
     action: string;
     summary: string;
     entityType?: string;
@@ -27,6 +29,7 @@ export class AuditService {
     public async log(actor: AuditActor | null, entry: AuditEntry): Promise<void> {
         try {
             await this.auditRepository.create({
+                groupId: entry.groupId,
                 actorId: actor?.id ?? null,
                 actorName: actor?.name ?? 'System',
                 action: entry.action,
@@ -40,8 +43,9 @@ export class AuditService {
         }
     }
 
-    public async list(options: { limit: number; offset: number; action?: string; entityType?: string; entityId?: number }) {
-        const where: WhereOptions = {};
+    /** One group's entries; `includeShared` adds the changes to shared content (for the super admin). */
+    public async list(options: { groupId: number; includeShared?: boolean; limit: number; offset: number; action?: string; entityType?: string; entityId?: number }) {
+        const where: WhereOptions = { groupId: options.includeShared ? { [Op.or]: [options.groupId, null] } : options.groupId };
         if (options.action) Object.assign(where, { action: options.action });
         if (options.entityType) Object.assign(where, { entityType: options.entityType });
         if (options.entityId) Object.assign(where, { entityId: options.entityId });
@@ -54,8 +58,8 @@ export class AuditService {
         return { items: rows.map(row => row.get({ plain: true })), total: count };
     }
 
-    /** When an action last happened, e.g. the latest draw. */
-    public async lastOccurrence(action: string): Promise<AuditLog | null> {
-        return this.auditRepository.findOne({ where: { action }, order: [['createdAt', 'DESC']] });
+    /** When an action last happened in a group, e.g. the group's latest draw. */
+    public async lastOccurrence(groupId: number, action: string): Promise<AuditLog | null> {
+        return this.auditRepository.findOne({ where: { groupId, action }, order: [['createdAt', 'DESC']] });
     }
 }

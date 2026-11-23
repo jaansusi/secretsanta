@@ -5,6 +5,7 @@ import { EncryptionService } from 'src/encryption/encryption.service';
 
 interface FakeUser {
     id: number;
+    groupId: number;
     name: string;
     familyId: number | null;
     lastYearGiftingToId: number | null;
@@ -18,13 +19,15 @@ interface FakeUser {
 /** In-memory stand-ins for the Sequelize models the service uses. */
 function setup(people: Array<Partial<FakeUser> & { id: number; name: string }>) {
     const users: FakeUser[] = people.map(p => ({
-        familyId: null, lastYearGiftingToId: null, encryptionStrategy: 'code',
+        groupId: GROUP, familyId: null, lastYearGiftingToId: null, encryptionStrategy: 'code',
         giftingTo: '', decryptionCode: '', iv: '', email: '', ...p,
     }));
+    const inGroup = (where: { groupId?: number }) => (u: FakeUser) => where.groupId === undefined || u.groupId === where.groupId;
     const userRepository = {
-        findAll: async () => users,
-        update: async (values: Partial<FakeUser>, options: { where: { id?: number } }) => {
-            users.filter(u => options.where.id === undefined || u.id === options.where.id).forEach(u => Object.assign(u, values));
+        findAll: async (options: { where?: { groupId?: number } } = {}) => users.filter(inGroup(options.where ?? {})),
+        update: async (values: Partial<FakeUser>, options: { where: { id?: number; groupId?: number } }) => {
+            users.filter(u => (options.where.id === undefined || u.id === options.where.id) && inGroup(options.where)(u))
+                .forEach(u => Object.assign(u, values));
         },
     };
     const familyIds = [...new Set(users.map(u => u.familyId).filter(Boolean))] as number[];
@@ -37,6 +40,7 @@ function setup(people: Array<Partial<FakeUser> & { id: number; name: string }>) 
 }
 
 const actor = { id: 1, name: 'Admin' };
+const GROUP = 1;
 
 describe('DrawService', () => {
     jest.setTimeout(60000);
@@ -51,7 +55,7 @@ describe('DrawService', () => {
             { id: 6, name: 'Fay', lastYearGiftingToId: 1 },
         ]);
         for (let round = 0; round < 5; round++) {
-            const status = await service.run(actor);
+            const status = await service.run(actor, GROUP);
             expect(status.state).toBe('valid');
             const byName = new Map(users.map(u => [u.name, u]));
             const recipients = users.map(u => byName.get(encryption.decryptGiftingTo(u as any))!);
@@ -72,31 +76,54 @@ describe('DrawService', () => {
             { id: 3, name: 'Cat', familyId: 1 },
             { id: 4, name: 'Dan' },
         ]);
-        const constraints = await service.constraints();
+        const constraints = await service.constraints(GROUP);
         expect(constraints.feasible).toBe(false);
         expect(constraints.warnings.join(' ')).toContain('at most half');
-        await expect(service.run(actor)).rejects.toThrow('No valid draw');
+        await expect(service.run(actor, GROUP)).rejects.toThrow('No valid draw');
         expect(users.every(u => u.giftingTo === '')).toBe(true);
     });
 
     it('fails the checks when a recipient was renamed behind its back', async () => {
         const { service, users } = setup([{ id: 1, name: 'Ann' }, { id: 2, name: 'Ben' }, { id: 3, name: 'Cat' }]);
-        await service.run(actor);
+        await service.run(actor, GROUP);
         users[1].name = 'Benjamin';
-        const status = await service.status();
+        const status = await service.status(GROUP);
         expect(status.state).toBe('invalid');
         expect(status.checks.find(c => c.key === 'recipients_exist')!.status).toBe('fail');
     });
 
     it('starts a new season by saving recipients as last year and clearing the draw', async () => {
         const { service, users, encryption } = setup([{ id: 1, name: 'Ann' }, { id: 2, name: 'Ben' }, { id: 3, name: 'Cat' }]);
-        await service.run(actor);
+        await service.run(actor, GROUP);
         const expected = users.map(u => users.find(r => r.name === encryption.decryptGiftingTo(u as any))!.id);
-        const result = await service.rollover(actor);
+        const result = await service.rollover(actor, GROUP);
         expect(result.recorded).toBe(3);
         expect(users.map(u => u.lastYearGiftingToId)).toEqual(expected);
         expect(users.every(u => u.giftingTo === '' && u.decryptionCode === '')).toBe(true);
         expect(result.status.state).toBe('not_drawn');
+    });
+
+    it('draws, clears and rolls over one group without touching another', async () => {
+        const { service, users, encryption } = setup([
+            { id: 1, name: 'Ann' }, { id: 2, name: 'Ben' }, { id: 3, name: 'Cat' },
+            // Same names in another group: names are unique per group only.
+            { id: 4, name: 'Ann', groupId: 2 }, { id: 5, name: 'Ben', groupId: 2 }, { id: 6, name: 'Cat', groupId: 2 }, { id: 7, name: 'Dan', groupId: 2 },
+        ]);
+        const other = users.filter(u => u.groupId === 2);
+        await service.run(actor, 2);
+        const otherDraw = other.map(u => ({ ...u }));
+
+        const status = await service.run(actor, GROUP);
+        expect(status.participants).toBe(3);
+        expect(status.state).toBe('valid');
+        expect(other).toEqual(otherDraw);
+        const first = users.filter(u => u.groupId === GROUP);
+        expect(first.map(u => encryption.decryptGiftingTo(u as any)).sort()).toEqual(['Ann', 'Ben', 'Cat']);
+
+        await service.clear(actor, GROUP);
+        expect(first.every(u => u.giftingTo === '')).toBe(true);
+        expect(other).toEqual(otherDraw);
+        expect((await service.status(2)).state).toBe('valid');
     });
 });
 

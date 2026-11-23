@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { AdminGuard } from 'src/auth/admin.guard';
-import { CurrentAdmin } from 'src/auth/admin-session';
+import { CurrentAdmin, CurrentGroupId } from 'src/auth/admin-session';
 import { User } from 'src/user/entities/user.entity';
 import { AuditService } from 'src/audit/audit.service';
 import { DrawService } from '../draw.service';
@@ -21,34 +21,35 @@ export class DrawController {
     ) { }
 
     @Get()
-    async status() {
-        const [status, constraints] = await Promise.all([this.drawService.status(), this.drawService.constraints()]);
+    async status(@CurrentGroupId() groupId: number) {
+        const [status, constraints] = await Promise.all([this.drawService.status(groupId), this.drawService.constraints(groupId)]);
         return { ...status, constraints };
     }
 
     @Post('run')
-    run(@CurrentAdmin() admin: User, @Body() body: any) {
+    run(@CurrentAdmin() admin: User, @CurrentGroupId() groupId: number, @Body() body: any) {
         requireConfirmation(body, 'DRAW');
-        return this.drawService.run(admin);
+        return this.drawService.run(admin, groupId);
     }
 
     @Post('clear')
-    clear(@CurrentAdmin() admin: User, @Body() body: any) {
+    clear(@CurrentAdmin() admin: User, @CurrentGroupId() groupId: number, @Body() body: any) {
         requireConfirmation(body, 'CLEAR');
-        return this.drawService.clear(admin);
+        return this.drawService.clear(admin, groupId);
     }
 
     @Post('rollover')
-    rollover(@CurrentAdmin() admin: User, @Body() body: any) {
+    rollover(@CurrentAdmin() admin: User, @CurrentGroupId() groupId: number, @Body() body: any) {
         requireConfirmation(body, 'NEW SEASON');
-        return this.drawService.rollover(admin);
+        return this.drawService.rollover(admin, groupId);
     }
 
     /** Personal links contain each participant's secret code, so every look is logged. */
     @Get('links')
-    async links(@CurrentAdmin() admin: User) {
-        const links = await this.drawService.links();
+    async links(@CurrentAdmin() admin: User, @CurrentGroupId() groupId: number) {
+        const links = await this.drawService.links(groupId);
         await this.auditService.log(admin, {
+            groupId,
             action: 'draw.links_viewed',
             summary: 'Viewed personal links',
             details: { count: links.filter(link => link.url).length },

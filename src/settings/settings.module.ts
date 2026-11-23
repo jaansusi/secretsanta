@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
-import { Setting } from './entities/setting.entity';
+import { Group } from 'src/group/entities/group.entity';
 import { SettingsService } from './settings.service';
 
 @Module({
-    imports: [SequelizeModule.forFeature([Setting])],
+    imports: [SequelizeModule.forFeature([Group])],
     providers: [SettingsService],
     exports: [SettingsService],
 })

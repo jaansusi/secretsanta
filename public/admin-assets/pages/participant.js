@@ -10,7 +10,7 @@ const MAX_UPLOAD = 20 * 1024 * 1024;
 
 export async function render(view, { params }) {
     const id = parseInt(params[0], 10);
-    let [participant, families, participants, { eventTypes }] = await Promise.all([
+    let [participant, families, participants, { eventTypes, isSuperAdmin }] = await Promise.all([
         api(`/participants/${id}`), api('/families'), api('/participants'), me(),
     ]);
     const drawn = participants.some(p => p.hasAssignment);
@@ -68,7 +68,7 @@ export async function render(view, { params }) {
                     <span class="hint" id="factsHint"></span>
                 </div>
                 <div class="field full">
-                    <span class="label">Agency facts <a class="hint" href="/admin/facts" style="font-weight:400">Edit list</a></span>
+                    <span class="label">Agency facts ${isSuperAdmin ? html`<a class="hint" href="/admin/facts" style="font-weight:400">Edit list</a>` : ''}</span>
                     ${participant.agencyFacts.length ? html`<ul class="fact-preview" style="margin:0">${participant.agencyFacts.map(f => html`<li>${f}</li>`)}</ul>` : html`<span class="muted">None</span>`}
                 </div>
             </div>
@@ -125,7 +125,7 @@ export async function render(view, { params }) {
                 </dl>
             </div>`);
         mount($('#clipsCard', view), html`
-            <div class="card-head"><h2>Name clips</h2><a class="btn btn-sm btn-ghost" href="/admin/audio?tab=participants">Generate<i class="bi bi-chevron-right"></i></a></div>
+            <div class="card-head"><h2>Name clips</h2>${isSuperAdmin ? html`<a class="btn btn-sm btn-ghost" href="/admin/audio?tab=participants">Generate<i class="bi bi-chevron-right"></i></a>` : ''}</div>
             ${participant.nameClips.length
                 ? html`<div class="card-body stack" style="gap:8px">${participant.nameClips.map((url, i) => html`<div><div class="hint">Variant ${i + 1}</div><audio controls preload="none" src="${url}"></audio></div>`)}</div>`
                 : emptyState('mic-mute', participant.dossier.hasAudio ? 'None, own clip is used' : 'None')}`);

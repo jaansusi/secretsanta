@@ -1,8 +1,14 @@
-import { BadRequestException, Injectable, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Setting } from './entities/setting.entity';
+import { Group } from 'src/group/entities/group.entity';
+import { httpsOrigin } from 'src/config/env';
 
 export interface SiteSettings {
+    /**
+     * When false, the group is disabled: it is left out of the group selection (/grupp, the header switch) and
+     * Google sign-in never lands in it. Personal links of its participants keep working.
+     */
+    groupEnabled: boolean;
     /** When false, participants can open the site but not their mission. Admins can always open theirs. */
     revealOpen: boolean;
     /** Shown on the site instead of the mission while revealOpen is false. */
@@ -22,6 +28,7 @@ export interface SiteSettings {
 }
 
 const DEFAULTS: SiteSettings = {
+    groupEnabled: true,
     revealOpen: true,
     revealClosedMessage: 'Loos ei ole veel avalikustatud. Proovi hiljem uuesti!',
     letterUrl: '',
@@ -32,56 +39,79 @@ const DEFAULTS: SiteSettings = {
     showFacts: false,
 };
 
+/** Keys of the per-group settings (also used to carry the old global settings into the first group). */
+export const SETTING_KEYS = Object.keys(DEFAULTS) as (keyof SiteSettings)[];
+
 const MAX_TEXT_LENGTH = 5000;
 
+/**
+ * Site settings, one set per group, stored in santa_group.settings. All groups' settings are cached, so reading
+ * them is synchronous (the CSP header needs the letter origins without a database round trip).
+ */
 @Injectable()
 export class SettingsService implements OnModuleInit {
-    private cache: SiteSettings = { ...DEFAULTS };
+    private cache = new Map<number, SiteSettings>();
 
     constructor(
-        @InjectModel(Setting)
-        private readonly settingRepository: typeof Setting,
+        @InjectModel(Group)
+        private readonly groupRepository: typeof Group,
     ) { }
 
     async onModuleInit() {
         await this.reload();
     }
 
-    private async reload() {
-        const rows = await this.settingRepository.findAll();
-        const loaded: Partial<SiteSettings> = {};
-        for (const row of rows) {
-            if (row.key in DEFAULTS) {
-                (loaded as any)[row.key] = row.value;
-            }
+    /** Re-reads every group's settings; call after creating or deleting a group. */
+    public async reload() {
+        const groups = await this.groupRepository.findAll({ attributes: ['id', 'settings'] });
+        this.cache = new Map(groups.map(group => [group.id, pickSettings(group.settings)]));
+    }
+
+    public get(groupId: number): SiteSettings {
+        return { ...(this.cache.get(groupId) ?? DEFAULTS) };
+    }
+
+    /** Whether participants can pick (or be signed in to) this group; see SiteSettings.groupEnabled. */
+    public isGroupEnabled(groupId: number): boolean {
+        return this.get(groupId).groupEnabled;
+    }
+
+    public letterUrl(groupId: number): string {
+        return this.get(groupId).letterUrl || process.env.GOOGLE_DOC_LETTER_LINK || '';
+    }
+
+    /** Every https origin some group's letter lives on: the CSP frame-src allows exactly these. */
+    public letterOrigins(): string[] {
+        const urls = [...this.cache.values()].map(settings => settings.letterUrl);
+        urls.push(process.env.GOOGLE_DOC_LETTER_LINK || '');
+        return [...new Set(urls.map(httpsOrigin).filter((origin): origin is string => !!origin))];
+    }
+
+    /** Saves the given keys for one group; returns its full settings and which keys actually changed. */
+    public async update(groupId: number, patch: Partial<SiteSettings>): Promise<{ settings: SiteSettings; changed: string[] }> {
+        const group = await this.groupRepository.findByPk(groupId);
+        if (!group) {
+            throw new NotFoundException('Group not found');
         }
-        this.cache = { ...DEFAULTS, ...loaded };
-    }
-
-    public get(): SiteSettings {
-        return { ...this.cache };
-    }
-
-    public letterUrl(): string {
-        return this.cache.letterUrl || process.env.GOOGLE_DOC_LETTER_LINK || '';
-    }
-
-    /** Saves the given keys; returns the full settings and which keys actually changed. */
-    public async update(patch: Partial<SiteSettings>): Promise<{ settings: SiteSettings; changed: string[] }> {
+        const current = pickSettings(group.settings);
+        const next: Record<string, unknown> = { ...(group.settings ?? {}) };
         const changed: string[] = [];
         for (const [key, raw] of Object.entries(patch ?? {})) {
             if (!(key in DEFAULTS)) {
                 throw new BadRequestException(`Unknown setting ${key}`);
             }
             const value = this.validate(key as keyof SiteSettings, raw);
-            if (JSON.stringify(value) === JSON.stringify((this.cache as any)[key])) {
+            if (JSON.stringify(value) === JSON.stringify((current as any)[key])) {
                 continue;
             }
-            await this.settingRepository.upsert({ key, value });
+            next[key] = value;
             changed.push(key);
         }
+        if (changed.length) {
+            await this.groupRepository.update({ settings: next }, { where: { id: groupId } });
+        }
         await this.reload();
-        return { settings: this.get(), changed };
+        return { settings: this.get(groupId), changed };
     }
 
     private validate(key: keyof SiteSettings, value: unknown): unknown {
@@ -108,6 +138,17 @@ export class SettingsService implements OnModuleInit {
         }
         return value;
     }
+}
+
+/** Stored values over the defaults; unknown keys are ignored. */
+function pickSettings(stored: Record<string, unknown> | null | undefined): SiteSettings {
+    const settings: SiteSettings = { ...DEFAULTS };
+    for (const key of SETTING_KEYS) {
+        if (stored && key in stored && typeof stored[key] === typeof DEFAULTS[key]) {
+            (settings as any)[key] = stored[key];
+        }
+    }
+    return settings;
 }
 
 function isHttpsUrl(text: string): boolean {

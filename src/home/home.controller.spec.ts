@@ -1,16 +1,22 @@
 import { HomeController } from './home.controller';
 
 describe('HomeController', () => {
-    const userService = { getByDecryptionCode: jest.fn(), getByName: jest.fn(), getById: jest.fn() };
+    const userService = { getByDecryptionCode: jest.fn(), getByName: jest.fn(), getById: jest.fn(), getAllByEmail: jest.fn(async (): Promise<any[]> => []) };
     const encryptionService = { decryptGiftingTo: jest.fn() };
     const dossierService = { getClipPlaylist: async () => ({ intros: [], outros: [] }), getRevealDossier: jest.fn() };
     const analyticsService = { track: jest.fn() };
-    const settingsService = { get: () => ({ revealOpen: true, revealClosedMessage: 'closed' }) };
-    const sessionService = { start: jest.fn(), getUser: jest.fn(), readUserId: jest.fn() };
+    const disabledGroups = new Set<number>();
+    const settingsService = {
+        get: () => ({ revealOpen: true, revealClosedMessage: 'closed' }),
+        isGroupEnabled: (groupId: number) => !disabledGroups.has(groupId),
+    };
+    const sessionService = { start: jest.fn(), getUser: jest.fn(), readUserId: jest.fn(), googleIdentity: jest.fn((): string | null => null) };
+    const adminAccess = { canManageGroup: jest.fn(async () => false) };
+    const groupService = { get: jest.fn(), namesById: jest.fn(async () => new Map()) };
     const logger = { error: jest.fn() };
     const controller = new HomeController(
         userService as any, encryptionService as any, dossierService as any, analyticsService as any,
-        settingsService as any, sessionService as any, logger as any,
+        settingsService as any, sessionService as any, adminAccess as any, groupService as any, logger as any,
     );
 
     const response = () => ({ render: jest.fn(), redirect: jest.fn(), cookie: jest.fn() });
@@ -49,6 +55,62 @@ describe('HomeController', () => {
         expect(await controller.showResult(request(), { code: ['a', 'b'] }, res as any)).toEqual({ error: 'Vigane päring!' });
         expect(await controller.showResult(request(), { code: { $ne: '' } }, res as any)).toEqual({ error: 'Vigane päring!' });
         expect(userService.getByDecryptionCode).not.toHaveBeenCalled();
+    });
+
+    describe('switching group (/grupp)', () => {
+        const mine = [{ id: 10, groupId: 1, name: 'Mari' }, { id: 20, groupId: 2, name: 'Mari' }];
+
+        it("only switches to a participant row of the Google account this browser signed in with", async () => {
+            sessionService.googleIdentity.mockReturnValue('mari@example.com');
+            userService.getAllByEmail.mockResolvedValue(mine as any);
+            const res = response();
+            await controller.switchGroup(request(), { userId: '20' }, res as any);
+            expect(sessionService.start).toHaveBeenCalledWith(res, mine[1]);
+
+            sessionService.start.mockClear();
+            await controller.switchGroup(request(), { userId: '99' }, response() as any);
+            expect(sessionService.start).not.toHaveBeenCalled();
+        });
+
+        it('leaves disabled groups out of the selection and refuses to switch to them', async () => {
+            sessionService.googleIdentity.mockReturnValue('mari@example.com');
+            userService.getAllByEmail.mockResolvedValue([...mine, { id: 30, groupId: 3, name: 'Mari' }] as any);
+            groupService.namesById.mockResolvedValue(new Map([[1, 'Family'], [2, 'Work'], [3, 'Old office']]));
+            disabledGroups.add(3);
+            try {
+                const res = response();
+                await controller.chooseGroup(request(), res as any);
+                const [, locals] = res.render.mock.calls[0];
+                expect(locals.choices.map((choice: any) => choice.groupName)).toEqual(['Family', 'Work']);
+
+                await controller.switchGroup(request(), { userId: 30 }, response() as any);
+                expect(sessionService.start).not.toHaveBeenCalled();
+
+                // With only one group left to choose, there is no selection at all.
+                disabledGroups.add(2);
+                const single = response();
+                await controller.chooseGroup(request(), single as any);
+                expect(single.redirect).toHaveBeenCalledWith(303, '/');
+            } finally {
+                disabledGroups.clear();
+            }
+        });
+
+        it('never switches after a personal code link (no Google identity)', async () => {
+            sessionService.googleIdentity.mockReturnValue(null);
+            userService.getAllByEmail.mockClear();
+            await controller.switchGroup(request(), { userId: 20 }, response() as any);
+            expect(sessionService.start).not.toHaveBeenCalled();
+            expect(userService.getAllByEmail).not.toHaveBeenCalled();
+        });
+
+        it('looks the recipient up in the Santa\'s own group', async () => {
+            userService.getByDecryptionCode.mockResolvedValue({ id: 5, groupId: 2, name: 'Mari' });
+            encryptionService.decryptGiftingTo.mockReturnValue('Jaan');
+            dossierService.getRevealDossier.mockResolvedValue({});
+            await controller.showResult(request(), { code: 'c'.repeat(26) }, response() as any);
+            expect(userService.getByName).toHaveBeenCalledWith(2, 'Jaan');
+        });
     });
 
     it('does not leak internal error details on a failed reveal', async () => {

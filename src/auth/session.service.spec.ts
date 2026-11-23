@@ -1,5 +1,6 @@
 import { SESSION_COOKIE, SESSION_TTL_MS, SessionService } from './session.service';
-import { ADMIN_COOKIE, adminSessionUserId, startAdminSession } from './admin-session';
+import { ADMIN_COOKIE, adminSessionEmail, startAdminSession } from './admin-session';
+import { IDENTITY_COOKIE } from './session.service';
 
 function requestWith(signedCookies: Record<string, unknown>): any {
     return { signedCookies, cookies: {} };
@@ -51,26 +52,47 @@ describe('SessionService', () => {
     });
 
     describe('admin session', () => {
+        const encoded = (email: string) => Buffer.from(email).toString('base64url');
+
         it('is separate from the participant session', () => {
             // A code link only ever creates santa_session, which must not count as admin.
             const request = requestWith({ [SESSION_COOKIE]: `1.${Date.now() + 60_000}` });
-            expect(adminSessionUserId(request)).toBeNull();
+            expect(adminSessionEmail(request)).toBeNull();
         });
 
-        it('rejects the old unexpiring format, tampered and expired values', () => {
-            expect(adminSessionUserId(requestWith({ [ADMIN_COOKIE]: '1' }))).toBeNull();
-            expect(adminSessionUserId(requestWith({ [ADMIN_COOKIE]: false }))).toBeNull();
-            expect(adminSessionUserId(requestWith({ [ADMIN_COOKIE]: `1.${Date.now() - 1}` }))).toBeNull();
-            expect(adminSessionUserId(requestWith({ [ADMIN_COOKIE]: `1.${Date.now() + 60_000}` }))).toBe(1);
+        it('rejects the old user-id formats, tampered and expired values', () => {
+            expect(adminSessionEmail(requestWith({ [ADMIN_COOKIE]: '1' }))).toBeNull();
+            expect(adminSessionEmail(requestWith({ [ADMIN_COOKIE]: `1.${Date.now() + 60_000}` }))).toBeNull();
+            expect(adminSessionEmail(requestWith({ [ADMIN_COOKIE]: false }))).toBeNull();
+            expect(adminSessionEmail(requestWith({ [ADMIN_COOKIE]: `${Date.now() - 1}.${encoded('a@b.ee')}` }))).toBeNull();
+            expect(adminSessionEmail(requestWith({ [ADMIN_COOKIE]: `${Date.now() + 60_000}.${encoded('a@b.ee')}` }))).toBe('a@b.ee');
         });
 
-        it('is issued signed, httpOnly and with an expiry inside the value', () => {
+        it('is issued signed, httpOnly, holding the verified e-mail and an expiry', () => {
             const response = { cookie: jest.fn() };
-            startAdminSession(response as any, { id: 3 } as any);
+            startAdminSession(response as any, 'mari@example.com');
             const [name, value, options] = response.cookie.mock.calls[0];
             expect(name).toBe(ADMIN_COOKIE);
-            expect(value).toMatch(/^3\.\d+$/);
+            expect(value).toMatch(/^\d+\.[A-Za-z0-9_-]+$/);
+            expect(adminSessionEmail(requestWith({ [ADMIN_COOKIE]: value }))).toBe('mari@example.com');
             expect(options).toMatchObject({ signed: true, httpOnly: true, sameSite: 'lax' });
+        });
+    });
+
+    describe('Google identity (switching between own groups)', () => {
+        it('round-trips the verified e-mail and is cleared on logout', () => {
+            const response = { cookie: jest.fn(), clearCookie: jest.fn() };
+            service.rememberGoogleIdentity(response as any, 'mari@example.com');
+            const [name, value, options] = response.cookie.mock.calls[0];
+            expect(name).toBe(IDENTITY_COOKIE);
+            expect(options).toMatchObject({ signed: true, httpOnly: true });
+            expect(service.googleIdentity(requestWith({ [IDENTITY_COOKIE]: value }))).toBe('mari@example.com');
+            service.end(response as any);
+            expect(response.clearCookie).toHaveBeenCalledWith(IDENTITY_COOKIE, expect.anything());
+        });
+
+        it('is not set by a personal code link session', () => {
+            expect(service.googleIdentity(requestWith({ [SESSION_COOKIE]: `1.${Date.now() + 60_000}` }))).toBeNull();
         });
     });
 });

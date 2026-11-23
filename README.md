@@ -3,12 +3,35 @@
 Secret Santa is a web application built with NestJS that allows users to participate in a Secret Santa gift exchange.
 This project uses a PostgreSQL database and supports Docker for containerization.
 
+## Groups
+
+Several Secret Santa groups (e.g. a family and an office) can run at the same time. Each group (`santa_group`) has
+its own participants, families, draw, dossiers, settings (incl. the letter on `/kiri`), analytics, activity log and
+maze leaderboard. Santa's voice lines and the agency facts are shared by every group.
+
+- **Participants** never see a group in the URL: a personal link belongs to one participant in one group, and so
+  does a session. The same person can take part in several groups, with one participant row per group (names and
+  e-mails are unique within a group). After a Google sign-in, someone in several groups picks one on `/grupp` and can
+  switch later ("Vaheta gruppi"). Switching relies on the verified e-mail of that Google sign-in
+  (`santa_identity` cookie), so a forwarded personal link never reaches the owner's other groups.
+- **Disabling a group** (group Settings, "Group is enabled") leaves it out of the selection: it is not offered on
+  `/grupp` or in the header switch, and Google sign-in never opens it. Personal links of its participants keep
+  working, and its admins can still manage it.
+- **Group admins** are the participants marked as admin in a group. They manage only their own groups; the panel's
+  group picker switches between them.
+- **The super admin** (`ADMIN_EMAIL`) manages every group, creates, renames and deletes groups (only empty ones) on
+  the **Groups** page, and is the only one who edits the shared agency facts and Santa audio (ElevenLabs costs money).
+
+A database from before groups existed is moved into a single group called "Secret Santa" on the first start, with
+the old settings; links already sent keep working. See `src/database/group-migration.ts`.
+
 ## Admin panel
 
-The admin panel lives at `/admin`. Sign in with a Google account whose participant has admin access
-(the `ADMIN_EMAIL` account is made admin automatically). Admin access uses its own signed, httpOnly
-`santa_admin` cookie (7 days), issued only by a Google sign-in, so a participant's personal link never grants
-admin access. The panel is a small single-page app in
+The admin panel lives at `/admin`. Sign in with a Google account that is an admin of at least one group (or is
+`ADMIN_EMAIL`). Admin access uses its own signed, httpOnly `santa_admin` cookie (7 days) holding the e-mail address
+Google verified, issued only by a Google sign-in, so a participant's personal link never grants admin access. Which
+groups it may manage is re-read from the database on every request. Every page works on the group chosen in the
+sidebar. The panel is a small single-page app in
 `public/admin-assets/` with no build step; its JSON API is `/api/admin/*` (`src/admin/`).
 
 - **Overview**: season checklist, mission progress, dossier completeness, recent activity.
@@ -21,16 +44,19 @@ admin access. The panel is a small single-page app in
 - **Analytics**: visitors, missions opened, Santa listen-through, funnel, devices, browsers, time of day, per-participant engagement.
 - **Activity log**: every admin change and every recorded site event.
 - **Settings**: open/close missions, closed message, exchange date, budget, letter link, organiser notes.
+- **Groups** (super admin): create groups with their first admin, rename, delete empty ones.
 
 Each Santa's recipient is stored in `user.giftingTo` as base64, not encrypted, only so names are not readable
-at a glance in query results. `decryptionCode` is the random code in the participant's personal link. Rows drawn
+at a glance in query results; it is always resolved within the Santa's own group. `decryptionCode` is the random code
+in the participant's personal link, unique across all groups. Rows drawn
 in the older AES format are converted to base64 on startup, keeping their codes, so links already sent keep working.
 
 Agency facts are stored in `agency_fact` and seeded once with the original list. Each dossier shows a few active
 ones (Settings, default 3), picked on the server from the recipient's name, so a person keeps the same facts while
 the list is unchanged.
 
-Site events are stored in `analytics_event` (no IP addresses), admin changes in `audit_log`, settings in `setting`.
+Site events are stored in `analytics_event` (no IP addresses), admin changes in `audit_log`, both with the group
+they belong to (visitors who are not signed in have none). Each group's settings are in `santa_group.settings`.
 Reports use the `ADMIN_TIME_ZONE` time zone (default `Europe/Tallinn`).
 
 ## Reveal flow and dossiers (2026)
@@ -157,7 +183,7 @@ The following environment variables are required:
 - `GOOGLE_CLIENT_SECRET`: Google OAuth Client Secret.
 - `COOKIE_SECRET`: Signs the session cookies. At least 32 random characters (`openssl rand -base64 48`).
   Rotating it signs everyone out.
-- `ADMIN_EMAIL`: Google account (verified email) that is always made an admin.
+- `ADMIN_EMAIL`: Google account (verified email) of the super admin, who manages every group.
 
 Optional:
 
@@ -168,7 +194,8 @@ Optional:
 - `DB_SSL` / `DB_SSL_CA`: `true` to require a verified TLS connection to Postgres; PEM CA for a private CA.
 - `DB_LOGGING`: `true` logs every SQL statement. Local debugging only, since statements contain decryption codes.
 - `STORE_DEBUG_ASSIGNMENTS`: `true` (with `NODE_ENV=development`) stores a plaintext copy of each assignment.
-- `GOOGLE_DOC_LETTER_LINK`: https URL of the letter on `/kiri` (overridable in admin settings, https only).
+- `GOOGLE_DOC_LETTER_LINK`: https URL of the letter on `/kiri`, for visitors who are not signed in and for groups
+  that have not set their own (admin settings, https only).
 
 ## Scripts
 

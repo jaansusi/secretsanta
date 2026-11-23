@@ -1,13 +1,13 @@
 import { Controller, Get, Post, Query, Redirect, Req, Res } from '@nestjs/common';
 import { Response } from 'express';
-import { UserService } from 'src/user/user.service';
-import { resolveAdmin } from 'src/auth/admin.guard';
+import { AdminAccessService } from 'src/auth/admin-access.service';
+import { SettingsService } from 'src/settings/settings.service';
 import { ADMIN_RETURN_PATH, AdminRequest, endAdminSession, RETURN_TO_COOKIE } from 'src/auth/admin-session';
 import { baseCookieOptions } from 'src/auth/session.service';
 
 const LOGIN_ERRORS: Record<string, string> = {
     forbidden: 'That Google account is not an admin.',
-    unknown: 'That Google account is not registered as a participant.',
+    unknown: 'That Google account is not registered as a participant in any group.',
 };
 
 /**
@@ -16,7 +16,10 @@ const LOGIN_ERRORS: Record<string, string> = {
  */
 @Controller('admin')
 export class AdminPageController {
-    constructor(private readonly userService: UserService) { }
+    constructor(
+        private readonly adminAccess: AdminAccessService,
+        private readonly settingsService: SettingsService,
+    ) { }
 
     @Get('login')
     @Redirect('/auth/google')
@@ -38,13 +41,24 @@ export class AdminPageController {
         response.setHeader('Cache-Control', 'no-store');
         response.setHeader('X-Frame-Options', 'DENY');
         response.setHeader('Referrer-Policy', 'same-origin');
-        const admin = await resolveAdmin(request, this.userService);
-        if (!admin) {
+        const context = await this.adminAccess.resolve(request);
+        if (!context) {
             return response.render('admin/login', {
                 error: error ? LOGIN_ERRORS[error] ?? 'Sign-in failed.' : null,
                 next: request.path,
             });
         }
-        return response.render('admin/app', { adminName: admin.name });
+        return response.render('admin/app', {
+            adminName: context.actor.name,
+            isSuperAdmin: context.isSuperAdmin,
+            groupName: context.group.name,
+            groups: context.groups.map(group => ({
+                id: group.id,
+                name: group.name,
+                disabled: !this.settingsService.isGroupEnabled(group.id),
+                selected: group.id === context.group.id,
+            })),
+            canSwitch: context.groups.length > 1,
+        });
     }
 }

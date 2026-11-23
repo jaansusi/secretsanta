@@ -13,6 +13,7 @@ const routes = [
     { pattern: /^\/admin\/analytics\/?$/, nav: 'analytics', title: 'Analytics', load: () => import('../pages/analytics.js') },
     { pattern: /^\/admin\/activity\/?$/, nav: 'activity', title: 'Activity log', load: () => import('../pages/activity.js') },
     { pattern: /^\/admin\/settings\/?$/, nav: 'settings', title: 'Settings', load: () => import('../pages/settings.js') },
+    { pattern: /^\/admin\/groups\/?$/, nav: 'groups', title: 'Groups', load: () => import('../pages/groups.js') },
 ];
 
 let cleanup = null;

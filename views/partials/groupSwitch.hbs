@@ -1,0 +1,8 @@
+{{!-- Header pill for people in several groups: which group's mission this is, and a way to switch. --}}
+{{#if groupName}}
+<a class="group-switch" href="/grupp" title="Vaheta gruppi">
+    <i class="bi bi-people-fill"></i>
+    <span class="group-switch-name">{{groupName}}</span>
+    <span class="group-switch-action"><i class="bi bi-arrow-left-right"></i><span class="group-switch-label"> Vaheta</span></span>
+</a>
+{{/if}}

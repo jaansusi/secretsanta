@@ -64,7 +64,7 @@ export async function render(view) {
                         ${data.checklist.map(item => html`<li>
                             ${statusIcon(item.status)}
                             <div class="grow"><div class="title">${item.label}</div><div class="meta">${item.detail}</div></div>
-                            <a class="btn btn-sm btn-ghost" href="${item.href}">Open<i class="bi bi-chevron-right"></i></a>
+                            ${item.href ? html`<a class="btn btn-sm btn-ghost" href="${item.href}">Open<i class="bi bi-chevron-right"></i></a>` : ''}
                         </li>`)}
                     </ul>
                 </section>

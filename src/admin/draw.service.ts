@@ -30,8 +30,8 @@ const MAX_ATTEMPTS = 20;
 const ASSIGNMENT_CLEARED = { giftingTo: '', giftingToDebug: '', decryptionCode: '', iv: '' };
 
 /**
- * Secret Santa draw: everyone is put on one closed chain (A gives to B, B to C, ... back to A),
- * never giving to themselves, their own family, or last year's recipient.
+ * Secret Santa draw, one group at a time: everyone in the group is put on one closed chain (A gives to B,
+ * B to C, ... back to A), never giving to themselves, their own family, or last year's recipient.
  * Admins never see who gives to whom; only the checks below.
  */
 @Injectable()
@@ -48,8 +48,8 @@ export class DrawService {
         private readonly logger: Logger,
     ) { }
 
-    private async loadUsers(): Promise<User[]> {
-        return this.userRepository.findAll({ order: [['id', 'ASC']] });
+    private async loadUsers(groupId: number): Promise<User[]> {
+        return this.userRepository.findAll({ where: { groupId }, order: [['id', 'ASC']] });
     }
 
     private forbiddenMap(nodes: Node[]): Map<number, Set<number>> {
@@ -109,9 +109,9 @@ export class DrawService {
     }
 
     /** What the constraints look like before drawing, and whether a valid draw exists. */
-    public async constraints() {
-        const users = await this.loadUsers();
-        const families = await this.familyRepository.findAll();
+    public async constraints(groupId: number) {
+        const users = await this.loadUsers(groupId);
+        const families = await this.familyRepository.findAll({ where: { groupId } });
         const nodes = users.map(toNode);
         const forbidden = this.forbiddenMap(nodes);
         const byId = new Map(users.map(user => [user.id, user]));
@@ -147,8 +147,8 @@ export class DrawService {
         return { feasible, warnings, perParticipant };
     }
 
-    public async run(actor: AuditActor) {
-        const users = await this.loadUsers();
+    public async run(actor: AuditActor, groupId: number) {
+        const users = await this.loadUsers(groupId);
         const unsupported = users.filter(user => user.encryptionStrategy !== EncryptionStrategy.CODE);
         if (unsupported.length) {
             throw new BadRequestException(`Cannot draw: ${unsupported.map(u => u.name).join(', ')} use an unsupported encryption strategy.`);
@@ -175,25 +175,26 @@ export class DrawService {
         });
         this.logger.log(`Draw completed for ${cycle.length} participants by ${actor.name}`);
         await this.auditService.log(actor, {
+            groupId,
             action: 'draw.run',
             summary: `Ran the draw for ${cycle.length} participants`,
             details: { participants: cycle.length },
         });
-        return this.status();
+        return this.status(groupId);
     }
 
-    public async clear(actor: AuditActor) {
-        await this.userRepository.update(ASSIGNMENT_CLEARED, { where: {} });
-        await this.auditService.log(actor, { action: 'draw.clear', summary: 'Cleared all assignments' });
-        return this.status();
+    public async clear(actor: AuditActor, groupId: number) {
+        await this.userRepository.update(ASSIGNMENT_CLEARED, { where: { groupId } });
+        await this.auditService.log(actor, { groupId, action: 'draw.clear', summary: 'Cleared all assignments' });
+        return this.status(groupId);
     }
 
     /**
      * Ends the season: each participant's current recipient becomes their "last year" recipient,
      * so next year's draw avoids repeats, and the current assignments are cleared.
      */
-    public async rollover(actor: AuditActor) {
-        const users = await this.loadUsers();
+    public async rollover(actor: AuditActor, groupId: number) {
+        const users = await this.loadUsers(groupId);
         const byName = new Map(users.map(user => [user.name, user]));
         let recorded = 0;
         const skipped: string[] = [];
@@ -208,14 +209,15 @@ export class DrawService {
                     skipped.push(user.name);
                 }
             }
-            await this.userRepository.update(ASSIGNMENT_CLEARED, { where: {}, transaction });
+            await this.userRepository.update(ASSIGNMENT_CLEARED, { where: { groupId }, transaction });
         });
         await this.auditService.log(actor, {
+            groupId,
             action: 'draw.rollover',
             summary: `Started a new season: saved ${recorded} last-year recipients and cleared the draw`,
             details: { recorded, skipped },
         });
-        return { recorded, skipped, status: await this.status() };
+        return { recorded, skipped, status: await this.status(groupId) };
     }
 
     private tryDecrypt(user: User): string | null {
@@ -230,11 +232,11 @@ export class DrawService {
     }
 
     /** Validates the stored draw without revealing any pairs. */
-    public async status() {
-        const users = await this.loadUsers();
+    public async status(groupId: number) {
+        const users = await this.loadUsers(groupId);
         const byName = new Map(users.map(user => [user.name, user]));
         const assigned = users.filter(user => !!user.giftingTo);
-        const lastRun = await this.auditService.lastOccurrence('draw.run');
+        const lastRun = await this.auditService.lastOccurrence(groupId, 'draw.run');
         const checks: DrawCheck[] = [];
         const drawn = assigned.length > 0;
 
@@ -314,15 +316,15 @@ export class DrawService {
         };
     }
 
-    /** Time of the latest draw: activity before it belongs to a previous season. */
-    public async currentSeasonStart(): Promise<Date | null> {
-        return (await this.auditService.lastOccurrence('draw.run'))?.createdAt ?? null;
+    /** Time of the group's latest draw: activity before it belongs to a previous season. */
+    public async currentSeasonStart(groupId: number): Promise<Date | null> {
+        return (await this.auditService.lastOccurrence(groupId, 'draw.run'))?.createdAt ?? null;
     }
 
     /** Personal links participants open to see their mission. They change with every draw. */
-    public async links() {
+    public async links(groupId: number) {
         const host = (process.env.HOST ?? '').replace(/\/+$/, '');
-        const users = await this.userRepository.findAll({ order: [['name', 'ASC']] });
+        const users = await this.userRepository.findAll({ where: { groupId }, order: [['name', 'ASC']] });
         return users.map(user => ({
             id: user.id,
             name: user.name,

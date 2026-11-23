@@ -15,14 +15,23 @@
                 <span class="brand-mark"><i class="bi bi-gift-fill"></i></span>
                 <span class="brand-text">Secret Santa<small>Admin</small></span>
             </div>
+            {{!-- Every page shows and changes the data of this group only. --}}
+            <div class="group-picker">
+                <label for="groupSwitcher"><i class="bi bi-people-fill"></i>Group</label>
+                {{#if canSwitch}}
+                <select id="groupSwitcher">
+                    {{#each groups}}<option value="{{id}}"{{#if selected}} selected{{/if}}>{{name}}{{#if disabled}} (disabled){{/if}}</option>{{/each}}
+                </select>
+                {{else}}
+                <div class="group-name">{{groupName}}</div>
+                {{/if}}
+            </div>
             <nav class="nav" aria-label="Admin">
                 <a href="/admin" data-nav="overview"><i class="bi bi-grid-1x2"></i>Overview</a>
                 <div class="nav-group">Manage</div>
                 <a href="/admin/participants" data-nav="participants"><i class="bi bi-people"></i>Participants</a>
                 <a href="/admin/families" data-nav="families"><i class="bi bi-house-heart"></i>Families</a>
                 <a href="/admin/content" data-nav="content"><i class="bi bi-folder2-open"></i>Dossiers</a>
-                <a href="/admin/facts" data-nav="facts"><i class="bi bi-incognito"></i>Agency facts</a>
-                <a href="/admin/audio" data-nav="audio"><i class="bi bi-soundwave"></i>Santa audio</a>
                 <div class="nav-group">Season</div>
                 <a href="/admin/draw" data-nav="draw"><i class="bi bi-shuffle"></i>Draw &amp; links</a>
                 <div class="nav-group">Insights</div>
@@ -30,6 +39,13 @@
                 <a href="/admin/activity" data-nav="activity"><i class="bi bi-clock-history"></i>Activity log</a>
                 <div class="nav-group">System</div>
                 <a href="/admin/settings" data-nav="settings"><i class="bi bi-gear"></i>Settings</a>
+                {{#if isSuperAdmin}}
+                {{!-- Shared by every group: only the site organiser (ADMIN_EMAIL) manages these. --}}
+                <div class="nav-group">All groups</div>
+                <a href="/admin/groups" data-nav="groups"><i class="bi bi-collection"></i>Groups</a>
+                <a href="/admin/facts" data-nav="facts"><i class="bi bi-incognito"></i>Agency facts</a>
+                <a href="/admin/audio" data-nav="audio"><i class="bi bi-soundwave"></i>Santa audio</a>
+                {{/if}}
             </nav>
             <div class="sidebar-footer">
                 <div class="whoami"><i class="bi bi-person-circle"></i><span>{{adminName}}</span></div>
@@ -40,7 +56,7 @@
         <div class="main-wrap">
             <header class="topbar">
                 <button class="icon-button" id="menuToggle" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false"><i class="bi bi-list"></i></button>
-                <span class="topbar-title">Secret Santa Admin</span>
+                <span class="topbar-title">{{groupName}}</span>
             </header>
             <main id="view" class="view" tabindex="-1">
                 <div class="loading">Loading…</div>

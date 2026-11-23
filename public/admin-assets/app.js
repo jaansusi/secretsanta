@@ -1,4 +1,5 @@
 import { startRouter } from './lib/router.js';
+import { switchGroup } from './lib/group.js';
 
 const sidebar = document.getElementById('sidebar');
 const toggle = document.getElementById('menuToggle');
@@ -12,5 +13,15 @@ document.addEventListener('click', event => {
         toggle.setAttribute('aria-expanded', 'false');
     }
 });
+
+const groupSwitcher = document.getElementById('groupSwitcher');
+if (groupSwitcher) {
+    const selected = groupSwitcher.value;
+    groupSwitcher.addEventListener('change', async () => {
+        if (!(await switchGroup(Number(groupSwitcher.value)))) {
+            groupSwitcher.value = selected;
+        }
+    });
+}
 
 startRouter();

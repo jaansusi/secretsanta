@@ -3,9 +3,15 @@ import { InjectModel } from '@nestjs/sequelize';
 import { CookieOptions, Request, Response } from 'express';
 import { User } from 'src/user/entities/user.entity';
 import { isSecureDeployment } from 'src/config/env';
+import { readIdentityCookie, setIdentityCookie } from './identity-cookie';
 
 /** Name of the signed participant session cookie. Admin access uses its own cookie (admin-session.ts). */
 export const SESSION_COOKIE = 'santa_session';
+/**
+ * Set by a Google sign-in: the verified e-mail, so someone in several groups can switch between their own
+ * participant rows. A personal code link never sets it, so a forwarded link cannot reach the owner's other groups.
+ */
+export const IDENTITY_COOKIE = 'santa_identity';
 /** Cookies used before sessions were signed. They are ignored and cleared on sight. */
 export const LEGACY_COOKIES = ['santa_auth', 'santa_auth_provider', 'santa_google'];
 
@@ -76,7 +82,18 @@ export class SessionService {
 
     public end(response: Response): void {
         response.clearCookie(SESSION_COOKIE, baseCookieOptions());
+        response.clearCookie(IDENTITY_COOKIE, baseCookieOptions());
         this.clearLegacy(response);
+    }
+
+    /** Remembers the e-mail Google verified, for switching between the person's groups. */
+    public rememberGoogleIdentity(response: Response, verifiedEmail: string): void {
+        setIdentityCookie(response, IDENTITY_COOKIE, verifiedEmail, SESSION_TTL_MS);
+    }
+
+    /** The e-mail from the last Google sign-in, or null (e.g. signed in with a personal link). */
+    public googleIdentity(request: Request): string | null {
+        return readIdentityCookie(request, IDENTITY_COOKIE);
     }
 
     private clearLegacy(response: Response): void {
