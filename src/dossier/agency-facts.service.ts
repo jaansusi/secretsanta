@@ -5,7 +5,7 @@ import { Setting } from 'src/settings/entities/setting.entity';
 import { SettingsService } from 'src/settings/settings.service';
 import { AuditActor, AuditService } from 'src/audit/audit.service';
 import { AgencyFact } from './entities/agency-fact.entity';
-import { DEFAULT_AGENCY_FACTS, pickAgencyFacts } from './agency-facts';
+import { DEFAULT_AGENCY_FACTS, assignAgencyFacts } from './agency-facts';
 
 /** Marks the one-time seed, so deleting every fact does not bring the defaults back. */
 const SEEDED_KEY = 'agencyFactsSeeded';
@@ -46,12 +46,24 @@ export class AgencyFactsService implements OnApplicationBootstrap {
         return facts.map(fact => fact.text);
     }
 
-    /** The facts a recipient's dossier shows (how many is a setting of the recipient's group). */
-    public async forRecipient(recipient: Pick<User, 'name' | 'groupId'> | null | undefined): Promise<string[]> {
-        if (!recipient?.name) {
+    /** Every participant's facts in one group (see assignAgencyFacts), by participant id. */
+    private async assignments(groupId: number, active?: string[]): Promise<Map<number, string[]>> {
+        const [texts, users] = await Promise.all([
+            active ?? this.activeTexts(),
+            this.userRepository.findAll({ where: { groupId }, attributes: ['id'] }),
+        ]);
+        return assignAgencyFacts(users.map(user => user.id), texts, this.settingsService.get(groupId).agencyFactsPerDossier);
+    }
+
+    /**
+     * The facts a recipient's dossier shows. They are spread over the whole group (how many each is a setting of
+     * the group), so every fact is used once before any is used twice.
+     */
+    public async forRecipient(recipient: Pick<User, 'id' | 'groupId'> | null | undefined): Promise<string[]> {
+        if (!recipient?.id) {
             return [];
         }
-        return pickAgencyFacts(recipient.name, await this.activeTexts(), this.settingsService.get(recipient.groupId).agencyFactsPerDossier);
+        return (await this.assignments(recipient.groupId)).get(recipient.id) ?? [];
     }
 
     /**
@@ -65,9 +77,10 @@ export class AgencyFactsService implements OnApplicationBootstrap {
         ]);
         const active = facts.filter(fact => fact.active).map(fact => fact.text);
         const count = this.settingsService.get(groupId).agencyFactsPerDossier;
+        const assigned = await this.assignments(groupId, active);
         const shownTo = new Map<string, { id: number; name: string }[]>();
         for (const user of users) {
-            for (const text of pickAgencyFacts(user.name, active, count)) {
+            for (const text of assigned.get(user.id) ?? []) {
                 shownTo.set(text, [...(shownTo.get(text) ?? []), { id: user.id, name: user.name }]);
             }
         }

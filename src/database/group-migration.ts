@@ -19,6 +19,8 @@ export const DEFAULT_GROUP_NAME = 'Secret Santa';
  * - drops the old globally unique name/email constraints (sync then creates the per-group unique indexes).
  */
 export async function migrateToGroups(sequelize: Sequelize): Promise<void> {
+    // Columns added to santa_group later. They must exist before Group.sync(), which creates their indexes.
+    await sequelize.query('ALTER TABLE IF EXISTS santa_group ADD COLUMN IF NOT EXISTS "signupCode" VARCHAR(255)');
     await Group.sync();
     const select = <T extends object>(sql: string, replacements: Record<string, unknown> = {}) =>
         sequelize.query<T>(sql, { replacements, type: QueryTypes.SELECT });

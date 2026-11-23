@@ -545,3 +545,30 @@
     outline: 2px solid #8a1c14;
     outline-offset: 2px;
 }
+
+/* ---------- Sign-up page (/liitu/<code>) ---------- */
+.signup-form {
+    text-align: left;
+    font-size: 0.75em;
+}
+
+.signup-form .form-text {
+    font-size: 0.85em;
+}
+
+.signup-form .briefing-error {
+    font-size: 1em;
+}
+
+.signup-form .briefing-action {
+    text-align: center;
+    margin-bottom: 0.4em;
+}
+
+.signup-form .button {
+    font-size: 1.3em;
+}
+
+.signup-text {
+    font-size: 0.75em;
+}

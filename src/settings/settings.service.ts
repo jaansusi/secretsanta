@@ -25,6 +25,10 @@ export interface SiteSettings {
     agencyFactsPerDossier: number;
     /** Show the recipient's "Teadaolevad faktid" (user.interestingFacts) in the dossier. Off for 2026. */
     showFacts: boolean;
+    /** Whether the group's sign-up link (see Group.signupCode) works. It also closes by itself once the draw has run. */
+    signupOpen: boolean;
+    /** Whether people signing up may create a family that does not exist yet (else only pick an existing one). */
+    signupNewFamilies: boolean;
 }
 
 const DEFAULTS: SiteSettings = {
@@ -37,6 +41,8 @@ const DEFAULTS: SiteSettings = {
     adminNotes: '',
     agencyFactsPerDossier: 3,
     showFacts: false,
+    signupOpen: false,
+    signupNewFamilies: true,
 };
 
 /** Keys of the per-group settings (also used to carry the old global settings into the first group). */

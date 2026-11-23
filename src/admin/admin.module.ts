@@ -26,6 +26,8 @@ import { MazeModule } from 'src/maze/maze.module';
 import { MazeAdminController } from './api/maze.controller';
 import { GroupsController } from './api/groups.controller';
 import { GroupModule } from 'src/group/group.module';
+import { SignupModule } from 'src/signup/signup.module';
+import { SignupAdminController } from './api/signup.controller';
 
 @Module({
     imports: [
@@ -39,8 +41,9 @@ import { GroupModule } from 'src/group/group.module';
         SantaAudioModule,
         MazeModule,
         GroupModule,
+        SignupModule,
     ],
-    controllers: [AdminPageController, ParticipantsController, FamiliesController, DrawController, InsightsController, AudioController, FactsController, ImportController, MazeAdminController, GroupsController],
+    controllers: [AdminPageController, ParticipantsController, FamiliesController, DrawController, InsightsController, AudioController, FactsController, ImportController, MazeAdminController, GroupsController, SignupAdminController],
     providers: [DrawService, ParticipantsService, FamiliesService, OverviewService, ImportService, Logger],
 })
 export class AdminModule { }

@@ -2,7 +2,7 @@ import { Column, DataType, Model, Table } from 'sequelize-typescript';
 
 /**
  * A made-up "agency intelligence" line ("Krokodille taltsutatud: 6"). Each dossier shows a few of them,
- * picked by the recipient's name so the same person always gets the same ones.
+ * spread evenly over each group's participants (see assignAgencyFacts).
  */
 @Table({
     tableName: 'agency_fact',

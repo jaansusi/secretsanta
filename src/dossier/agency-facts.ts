@@ -101,16 +101,85 @@ function seededRandom(seed: string): () => number {
     };
 }
 
+/** How many complete sets one person's search looks at before settling for a repeated one. */
+const MAX_SEARCH = 2000;
+
 /**
- * Picks `count` distinct facts for a recipient. Same algorithm the browser used before, so with the
- * default list in its original order everyone keeps the facts they had.
+ * Hands out `count` distinct facts to each participant of one group, spreading them as evenly as possible:
+ * - every fact is shown once before any fact is shown twice, then twice before three times, and so on;
+ * - within that, nobody gets exactly the same set as someone before them (unless even use leaves no other
+ *   choice, which only happens with few facts for many people), and facts that have appeared together least
+ *   often are preferred, so the combinations overlap as little as possible;
+ * - remaining ties are broken by a shuffle seeded with the person's id, so the result is stable.
+ *
+ * People are handled in id order and each one only depends on those before them, so someone who joins the group
+ * later never changes anyone else's facts. Changing the fact list, the count or removing someone can.
+ * Returns the facts per person id.
  */
-export function pickAgencyFacts(name: string, facts: string[], count: number): string[] {
-    const random = seededRandom(name);
-    const pool = facts.slice();
-    const picked: string[] = [];
-    while (picked.length < count && pool.length > 0) {
-        picked.push(pool.splice(Math.floor(random() * pool.length), 1)[0]);
+export function assignAgencyFacts(personIds: number[], facts: string[], count: number): Map<number, string[]> {
+    const n = facts.length;
+    const perPerson = Math.max(0, Math.min(Math.floor(count), n));
+    const usage = new Array<number>(n).fill(0);
+    // together[a * n + b]: how many dossiers show facts a and b together.
+    const together = new Uint16Array(n * n);
+    // The sets handed out so far, as sorted fact indexes.
+    const sets = new Set<string>();
+    const setKey = (indexes: number[]) => [...indexes].sort((a, b) => a - b).join(',');
+    const result = new Map<number, string[]>();
+    const pairsWith = (chosen: number[], fact: number) => chosen.reduce((sum, other) => sum + together[other * n + fact], 0);
+
+    /**
+     * Adds `needed` facts from `pool` to `base`: a set nobody has yet if one can be found, preferring facts that have
+     * appeared least often together with the ones already picked. A small search, so a full pool cannot stall it.
+     */
+    const choose = (base: number[], pool: number[], needed: number): number[] => {
+        let first: number[] | null = null;
+        let leaves = 0;
+        const search = (picked: number[], from: number[], left: number): number[] | null => {
+            if (left === 0) {
+                first ??= picked;
+                leaves++;
+                return sets.has(setKey(picked)) ? null : picked;
+            }
+            // Stable sort: equal scores keep the person's shuffled order.
+            const candidates = from.map(fact => ({ fact, score: pairsWith(picked, fact) })).sort((a, b) => a.score - b.score);
+            for (let i = 0; i < candidates.length && leaves < MAX_SEARCH; i++) {
+                const rest = candidates.slice(i + 1).map(candidate => candidate.fact);
+                if (rest.length < left - 1) break;
+                const found = search([...picked, candidates[i].fact], rest, left - 1);
+                if (found) return found;
+            }
+            return null;
+        };
+        return search(base, pool, needed) ?? first ?? base;
+    };
+
+    for (const id of [...new Set(personIds)].sort((a, b) => a - b)) {
+        const random = seededRandom(`agency-facts:${id}`);
+        const order = shuffle([...Array(n).keys()], random);
+        // Even use: the person gets the least used facts. Those used less than the k-th least used one are a must;
+        // the rest come from the facts tied at that level, which is the only real choice.
+        const byUsage = [...order].sort((a, b) => usage[a] - usage[b]);
+        const level = perPerson ? usage[byUsage[perPerson - 1]] : 0;
+        const must = byUsage.filter(fact => usage[fact] < level);
+        const pool = order.filter(fact => usage[fact] === level);
+        const chosen = perPerson ? choose(must, pool, perPerson - must.length) : [];
+        sets.add(setKey(chosen));
+        for (const fact of chosen) {
+            usage[fact]++;
+            for (const other of chosen) {
+                if (other !== fact) together[other * n + fact]++;
+            }
+        }
+        result.set(id, chosen.map(index => facts[index]));
     }
-    return picked;
+    return result;
+}
+
+function shuffle<T>(items: T[], random: () => number): T[] {
+    for (let i = items.length - 1; i > 0; i--) {
+        const j = Math.floor(random() * (i + 1));
+        [items[i], items[j]] = [items[j], items[i]];
+    }
+    return items;
 }

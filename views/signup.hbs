@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  {{> head pageTitle="Liitu · SälaSanta"}}
+  <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/dossier.css">
+  <link href="/vendor/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
+</head>
+
+<body>
+  {{!-- The group's name is "signupGroup", not "groupName", which would show the header's group switch. --}}
+  <div class="bg">
+    {{> hoverIcons}}
+    <main role="main" class="centerer text-center">
+      <div class="briefing signup">
+        {{#if invalid}}
+        <h2 class="briefing-title">Link ei kehti</h2>
+        <p class="briefing-greeting">Seda registreerumislinki ei ole või see on vahetatud. Küsi korraldajalt uus link.</p>
+        {{else if done}}
+        <div class="briefing-greeting">{{signupGroup}}</div>
+        <h2 class="briefing-title briefing-headline"><i class="bi bi-check2-circle"></i> Oled kirjas!</h2>
+        <p class="signup-text">Kui loos on tehtud, saadab korraldaja sulle isikliku lingi, millega oma missiooni avada.
+          Siis saad sisse logida ka Google kontoga, kui see on sama e-posti aadressiga.</p>
+        <div class="briefing-small"><a href="{{again}}">Lisa veel keegi</a></div>
+        {{else if closed}}
+        <div class="briefing-greeting">{{signupGroup}}</div>
+        <h2 class="briefing-title">Registreerumine on suletud</h2>
+        <p class="signup-text">{{closed}}</p>
+        {{else}}
+        <div class="briefing-greeting">{{signupGroup}}</div>
+        <h2 class="briefing-title briefing-headline"><i class="bi bi-person-plus-fill"></i> Liitu jõululoosiga</h2>
+        <form method="post" action="{{action}}" class="signup-form" novalidate>
+          <div class="briefing-error {{#unless error}}hidden{{/unless}}" role="alert">{{error}}</div>
+          <div class="mb-3">
+            <label for="signupName" class="form-label">Nimi</label>
+            <input type="text" class="form-control" id="signupName" name="name" value="{{values.name}}" maxlength="100" autocomplete="name" required>
+            <div class="form-text">Nii, nagu teised sind tunnevad. Selle nime ütleb jõuluvana sinu salajasele jõuluvanale.</div>
+          </div>
+          <div class="mb-3">
+            <label for="signupEmail" class="form-label">E-post</label>
+            <input type="email" class="form-control" id="signupEmail" name="email" value="{{values.email}}" maxlength="200" autocomplete="email" required>
+            <div class="form-text">Google kontoga sisselogimiseks ja et korraldaja saaks sulle lingi saata.</div>
+          </div>
+          {{#if hasFamilies}}
+          <div class="mb-3">
+            <label for="signupFamily" class="form-label">Perekond</label>
+            <select class="form-select" id="signupFamily" name="family">
+              <option value="" {{#if noneSelected}}selected{{/if}}>Ei kuulu ühtegi perekonda</option>
+              {{#each families}}
+              <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
+              {{/each}}
+              {{#if allowNewFamilies}}
+              <option value="new" {{#if newSelected}}selected{{/if}}>Minu perekonda pole nimekirjas, loon uue</option>
+              {{/if}}
+            </select>
+            <div class="form-text">Ühe perekonna liikmed ei loosi kingitust üksteisele.</div>
+          </div>
+          {{else if allowNewFamilies}}
+          <div class="mb-3">
+            <label for="signupFamily" class="form-label">Perekond</label>
+            <select class="form-select" id="signupFamily" name="family">
+              <option value="" {{#if noneSelected}}selected{{/if}}>Ei kuulu ühtegi perekonda</option>
+              <option value="new" {{#if newSelected}}selected{{/if}}>Loon uue perekonna</option>
+            </select>
+            <div class="form-text">Ühe perekonna liikmed ei loosi kingitust üksteisele.</div>
+          </div>
+          {{/if}}
+          {{#if allowNewFamilies}}
+          <div class="mb-3 {{#unless newSelected}}hidden{{/unless}}" id="newFamilyField">
+            <label for="signupNewFamily" class="form-label">Uue perekonna nimi</label>
+            <input type="text" class="form-control" id="signupNewFamily" name="newFamily" value="{{values.newFamily}}" maxlength="100" placeholder="nt Tamme pere">
+          </div>
+          {{/if}}
+          <div class="briefing-action">
+            <button type="submit" class="button">Liitu</button>
+          </div>
+        </form>
+        {{/if}}
+      </div>
+    </main>
+  </div>
+  <script src="/js/signup.js"></script>
+</body>
+
+</html>

@@ -6,6 +6,7 @@ import { fmtDateTime, relTime } from '../lib/format.js';
 import { navigate, setQuery } from '../lib/router.js';
 import { missionBadge } from './shared.js';
 import { profileFields, readProfile } from './participant-form.js';
+import { signupDialog } from './signup-dialog.js';
 
 const FILTERS = [
     { key: 'all', label: 'All' },
@@ -36,6 +37,7 @@ export async function render(view, { query }) {
             title: 'Participants',
             actions: html`
                 <button class="btn" id="exportCsv"><i class="bi bi-download"></i>Export CSV</button>
+                <button class="btn" id="openSignup"><i class="bi bi-link-45deg"></i>Sign-up link</button>
                 <button class="btn btn-primary" id="addParticipant"><i class="bi bi-person-plus"></i>Add participant</button>`,
         })}
         <section class="card" id="tableCard"></section>`);
@@ -100,6 +102,13 @@ export async function render(view, { query }) {
     };
 
     $('#addParticipant', view).addEventListener('click', addParticipant);
+    $('#openSignup', view).addEventListener('click', async () => {
+        try {
+            await signupDialog();
+        } catch (err) {
+            toast(err.message, 'error');
+        }
+    });
     $('#exportCsv', view).addEventListener('click', () => downloadCsv('participants.csv', [
         { label: 'Name', value: p => p.name },
         { label: 'E-mail', value: p => p.email },

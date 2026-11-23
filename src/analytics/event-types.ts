@@ -14,6 +14,8 @@ export const EVENT_TYPES = {
     autoplay_blocked: 'Audio autoplay was blocked',
     maze_start: 'Started a maze game',
     maze_complete: 'Finished a maze game',
+    signup_view: 'Opened the sign-up link',
+    signup: 'Signed up with the sign-up link',
 } as const;
 
 export type EventType = keyof typeof EVENT_TYPES;

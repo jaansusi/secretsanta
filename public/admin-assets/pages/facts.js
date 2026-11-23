@@ -1,6 +1,6 @@
 import { api } from '../lib/api.js';
 import { html, mount, $, $$, on } from '../lib/dom.js';
-import { pageHead, formDialog, toast, info } from '../lib/ui.js';
+import { pageHead, formDialog, toast, info, copyText } from '../lib/ui.js';
 import { setQuery } from '../lib/router.js';
 
 const FILTERS = [
@@ -24,8 +24,9 @@ export async function render(view, { query }) {
     mount(view, html`
         ${pageHead({
             title: 'Agency facts',
-            help: "Each dossier shows a few of these under Agentuuri andmed, picked by the recipient's name. The same person keeps the same facts while the list stays the same.",
-            actions: html`<button class="btn" id="pasteMany"><i class="bi bi-clipboard-plus"></i>Paste many</button>`,
+            help: "Each dossier shows a few of these under Agentuuri andmed. They are spread over the group: every fact is used once before any is used twice, and no two people get the same combination while that can be avoided. People keep their facts while the list stays the same; someone joining later does not change anyone else's.",
+            actions: html`<button class="btn" id="copyAll" title="One fact per line, as Paste many takes them. With a search or filter, only the facts shown."><i class="bi bi-clipboard"></i>Copy all</button>
+                <button class="btn" id="pasteMany"><i class="bi bi-clipboard-plus"></i>Paste many</button>`,
         })}
         <section class="card">
             <div class="toolbar">
@@ -160,6 +161,14 @@ export async function render(view, { query }) {
             draw();
             toast(`Added ${result.ids.length} fact${result.ids.length === 1 ? '' : 's'}`);
         }
+    });
+
+    // The facts in the table (all of them unless searched or filtered), one per line: the format Paste many takes.
+    $('#copyAll', view).addEventListener('click', () => {
+        const list = visible();
+        if (!list.length) return toast('No facts to copy', 'error');
+        const filtered = list.length !== data.facts.length;
+        copyText(list.map(f => f.text).join('\n'), `Copied ${list.length} fact${list.length === 1 ? '' : 's'}${filtered ? ' (the ones shown)' : ''}`);
     });
 
     // ---------- Toggle and delete ----------

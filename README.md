@@ -22,6 +22,14 @@ maze leaderboard. Santa's voice lines and the agency facts are shared by every g
 - **The super admin** (`ADMIN_EMAIL`) manages every group, creates, renames and deletes groups (only empty ones) on
   the **Groups** page, and is the only one who edits the shared agency facts and Santa audio (ElevenLabs costs money).
 
+- **Sign-up link**: an admin can open sign-up for a group (Participants, "Sign-up link") and share its secret link,
+  `/liitu/<code>`. Anyone with it adds themselves to that group with their name and e-mail, and picks their family,
+  creates a new one (unless the admin turned that off) or picks none. Names and e-mails stay unique within the group.
+  Sign-up does not sign anyone in or grant admin access: personal links come from the draw, as for everyone else, and
+  Google sign-in works with the e-mail given. It pauses by itself while the group has been drawn, so nobody joins after
+  the names are drawn. "New link" replaces the code, so the old link stops working. Sign-ups and families created by
+  them show in the activity log under the person's own name.
+
 A database from before groups existed is moved into a single group called "Secret Santa" on the first start, with
 the old settings; links already sent keep working. See `src/database/group-migration.ts`.
 
@@ -35,7 +43,7 @@ sidebar. The panel is a small single-page app in
 `public/admin-assets/` with no build step; its JSON API is `/api/admin/*` (`src/admin/`).
 
 - **Overview**: season checklist, mission progress, dossier completeness, recent activity.
-- **Participants**: searchable table, profile and dossier editing (codename, brief, facts, photo, audio), per-person activity, CSV export.
+- **Participants**: searchable table, profile and dossier editing (codename, brief, facts, photo, audio), per-person activity, CSV export, and the group's sign-up link.
 - **Families**: groups that never give to each other, with member assignment.
 - **Dossiers**: completeness of every dossier at a glance.
 - **Agency facts**: the made-up "Agentuuri andmed" lines, edited directly in the table (Enter saves and moves down, Escape undoes), with bulk paste, on/off switches and who sees each one.
@@ -52,8 +60,9 @@ in the participant's personal link, unique across all groups. Rows drawn
 in the older AES format are converted to base64 on startup, keeping their codes, so links already sent keep working.
 
 Agency facts are stored in `agency_fact` and seeded once with the original list. Each dossier shows a few active
-ones (Settings, default 3), picked on the server from the recipient's name, so a person keeps the same facts while
-the list is unchanged.
+ones (Settings, default 3), spread over the group on the server: every fact is used once before any is used twice, and
+the combinations overlap as little as possible. Participants are handled oldest first, so a person keeps the same facts
+while the list and the count are unchanged, and someone who joins later does not change anyone else's facts.
 
 Site events are stored in `analytics_event` (no IP addresses), admin changes in `audit_log`, both with the group
 they belong to (visitors who are not signed in have none). Each group's settings are in `santa_group.settings`.

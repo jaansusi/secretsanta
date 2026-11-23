@@ -7,3 +7,6 @@ export const DEFAULT_THROTTLE = { name: 'default', ttl: 60_000, limit: 300 };
 
 /** Endpoints that look a user up by decryption code. */
 export const CODE_CHECK_THROTTLE = { default: { ttl: 60_000, limit: 30 } };
+
+/** Signing up through a group's sign-up link: a family signs up a handful of people, a script cannot fill the group. */
+export const SIGNUP_THROTTLE = { default: { ttl: 10 * 60_000, limit: 15 } };
