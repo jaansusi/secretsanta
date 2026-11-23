@@ -222,6 +222,28 @@ export class ParticipantsService {
         return { warnings: drawn ? ['This person was part of the current draw. Run the draw again.'] : [] };
     }
 
+    /**
+     * Who this participant is gifting to. Never part of detail(): the caller reveals it on demand and logs it.
+     * The recipient's id is null when the stored name no longer matches anyone in the group.
+     */
+    public async recipient(groupId: number, id: number): Promise<{ user: User; recipientName: string; recipientId: number | null }> {
+        const user = await this.require(groupId, id);
+        if (!user.giftingTo) {
+            throw new BadRequestException('This person has no assignment until the draw has been run');
+        }
+        if (user.encryptionStrategy !== EncryptionStrategy.CODE) {
+            throw new BadRequestException('This assignment is encrypted with the participant\'s own key and cannot be read on the server');
+        }
+        let recipientName: string;
+        try {
+            recipientName = this.encryptionService.decryptGiftingTo(user);
+        } catch {
+            throw new BadRequestException('The stored assignment cannot be read. Run the draw again.');
+        }
+        const recipient = await this.userRepository.findOne({ where: { groupId, name: recipientName } });
+        return { user, recipientName, recipientId: recipient?.id ?? null };
+    }
+
     /** A participant of this group; one of another group is "not found", never revealed. */
     public async require(groupId: number, id: number): Promise<User> {
         const user = await this.userRepository.findOne({ where: { id, groupId } });

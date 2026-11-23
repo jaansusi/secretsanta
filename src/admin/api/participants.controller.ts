@@ -75,6 +75,18 @@ export class ParticipantsController {
         return { url: `${host}/?code=${encodeURIComponent(user.decryptionCode)}` };
     }
 
+    /** Reveals who the participant is gifting to. Hidden by default in the panel, and every look is logged. */
+    @Get(':id/recipient')
+    async recipient(@CurrentAdmin() admin: User, @CurrentGroupId() groupId: number, @Param('id', ParseIntPipe) id: number) {
+        const { user, recipientName, recipientId } = await this.participantsService.recipient(groupId, id);
+        await this.auditService.log(admin, {
+            groupId,
+            action: 'participant.recipient_viewed', entityType: 'participant', entityId: id,
+            summary: `Revealed who ${user.name} is gifting to`,
+        });
+        return { name: recipientName, id: recipientId };
+    }
+
     /** Codename, mission brief and the facts list: everything text in the dossier. */
     @Put(':id/dossier')
     async saveDossier(@CurrentAdmin() admin: User, @CurrentGroupId() groupId: number, @Param('id', ParseIntPipe) id: number, @Body() body: any) {

@@ -109,6 +109,14 @@ export async function render(view, { params }) {
     };
 
     // ---------- Aside ----------
+    // Who they are gifting to stays hidden until asked for; each reveal is fetched (and logged) separately.
+    let recipient = null;
+    const recipientValue = () => {
+        if (!participant.hasAssignment) return html`<span class="muted">Not drawn</span>`;
+        if (!recipient) return html`<button type="button" class="btn btn-sm btn-ghost" id="revealRecipient" title="Reveals the assignment. The look is recorded in the audit log."><i class="bi bi-eye"></i>Reveal</button>`;
+        return html`${recipient.id ? html`<a href="/admin/participants/${recipient.id}">${recipient.name}</a>` : recipient.name}
+            <button type="button" class="btn btn-sm btn-ghost" id="hideRecipient" title="Hide"><i class="bi bi-eye-slash"></i></button>`;
+    };
     const renderStatus = () => {
         const a = participant.activity;
         mount($('#statusCard', view), html`
@@ -116,6 +124,7 @@ export async function render(view, { params }) {
             <div class="card-body">
                 <dl class="kv">
                     <dt>In the draw</dt><dd>${participant.hasAssignment ? html`<span class="badge badge-good">Yes</span>` : html`<span class="badge ${drawn ? 'badge-bad' : ''}">No</span>`}</dd>
+                    <dt>Gifting to</dt><dd id="recipientValue">${recipientValue()}</dd>
                     <dt>Opened mission</dt><dd>${a?.firstReveal ? fmtDateTime(a.firstReveal) : html`<span class="muted">Not yet</span>`}</dd>
                     <dt>Times opened</dt><dd class="num">${a?.reveals ?? 0}</dd>
                     <dt>Heard Santa</dt><dd>${a?.briefingComplete ? 'Yes' : html`<span class="muted">No</span>`}</dd>
@@ -238,6 +247,20 @@ export async function render(view, { params }) {
         } catch (err) {
             toast(err.message, 'error');
         }
+    });
+
+    on(view, 'click', '#revealRecipient', async (e, button) => {
+        button.disabled = true;
+        try {
+            recipient = await api(`/participants/${id}/recipient`);
+        } catch (err) {
+            toast(err.message, 'error');
+        }
+        mount($('#recipientValue', view), recipientValue());
+    });
+    on(view, 'click', '#hideRecipient', () => {
+        recipient = null;
+        mount($('#recipientValue', view), recipientValue());
     });
 
     on(view, 'click', '#deleteParticipant', async () => {
