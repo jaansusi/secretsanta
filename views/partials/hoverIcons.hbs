@@ -7,4 +7,6 @@
     </a>
     {{!-- Extra icons from the page, e.g. the logout button on the main page. --}}
     {{#if @partial-block}}{{> @partial-block}}{{/if}}
+    {{!-- Which group's mission this is, for people in several groups (with a link to switch). --}}
+    {{> groupSwitch}}
 </div>

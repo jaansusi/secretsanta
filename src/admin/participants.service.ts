@@ -47,13 +47,13 @@ export class ParticipantsService {
         private readonly agencyFactsService: AgencyFactsService,
     ) { }
 
-    public async list() {
-        const [users, families, dossiers, activity, clipCounts] = await Promise.all([
-            this.userRepository.findAll({ order: [['name', 'ASC']] }),
-            this.familyRepository.findAll(),
-            this.dossierService.getAllSummaries(),
-            this.drawService.currentSeasonStart().then(since => this.analyticsService.participantActivity(since)),
-            this.santaAudioService.nameClipCounts(),
+    public async list(groupId: number) {
+        const users = await this.userRepository.findAll({ where: { groupId }, order: [['name', 'ASC']] });
+        const [families, dossiers, activity, clipCounts] = await Promise.all([
+            this.familyRepository.findAll({ where: { groupId } }),
+            this.dossierService.getSummaries(users.map(user => user.id)),
+            this.drawService.currentSeasonStart(groupId).then(since => this.analyticsService.participantActivity(groupId, since)),
+            this.santaAudioService.nameClipCounts(groupId),
         ]);
         const names = new Map(users.map(user => [user.id, user.name]));
         const familyNames = new Map(families.map(family => [family.id, family.name]));
@@ -85,16 +85,16 @@ export class ParticipantsService {
         });
     }
 
-    public async detail(id: number) {
-        const user = await this.require(id);
-        const since = await this.drawService.currentSeasonStart();
+    public async detail(groupId: number, id: number) {
+        const user = await this.require(groupId, id);
+        const since = await this.drawService.currentSeasonStart(groupId);
         const [family, lastYear, dossier, activity, events, audit] = await Promise.all([
-            user.familyId ? this.familyRepository.findByPk(user.familyId) : null,
-            user.lastYearGiftingToId ? this.userRepository.findByPk(user.lastYearGiftingToId) : null,
+            user.familyId ? this.familyRepository.findOne({ where: { id: user.familyId, groupId } }) : null,
+            user.lastYearGiftingToId ? this.userRepository.findOne({ where: { id: user.lastYearGiftingToId, groupId } }) : null,
             this.dossierService.getSummary(id),
-            this.analyticsService.participantActivity(since),
-            this.analyticsService.recentEvents({ limit: 25, offset: 0, userId: id }),
-            this.auditService.list({ limit: 25, offset: 0, entityType: 'participant', entityId: id }),
+            this.analyticsService.participantActivity(groupId, since),
+            this.analyticsService.recentEvents({ groupId, limit: 25, offset: 0, userId: id }),
+            this.auditService.list({ groupId, limit: 25, offset: 0, entityType: 'participant', entityId: id }),
         ]);
         return {
             id: user.id,
@@ -111,7 +111,7 @@ export class ParticipantsService {
             hasLink: !!user.decryptionCode,
             dossier,
             nameClips: await this.santaAudioService.nameClipUrls(user),
-            agencyFacts: await this.agencyFactsService.forRecipient(user.name),
+            agencyFacts: await this.agencyFactsService.forRecipient(user),
             activity: activity.get(id) ?? null,
             events: events.items,
             audit: audit.items,
@@ -120,31 +120,33 @@ export class ParticipantsService {
         };
     }
 
-    public async create(actor: AuditActor, body: any) {
-        const input = await this.parse(body, null);
+    public async create(actor: AuditActor, groupId: number, body: any) {
+        const input = await this.parse(groupId, body, null);
         if (!input.name) {
             throw new BadRequestException('name is required');
         }
         const user = await this.userRepository.create({
             ...input,
+            groupId,
             encryptionStrategy: input.encryptionStrategy ?? EncryptionStrategy.CODE,
             isAdmin: input.isAdmin ?? false,
         });
         await this.auditService.log(actor, {
+            groupId,
             action: 'participant.create',
             entityType: 'participant',
             entityId: user.id,
             summary: `Added ${user.name}`,
         });
-        const warnings = (await this.drawService.status()).state !== 'not_drawn'
+        const warnings = (await this.drawService.status(groupId)).state !== 'not_drawn'
             ? ['The draw has already been run. Run it again so this person is included.']
             : [];
-        return { participant: await this.detail(user.id), warnings };
+        return { participant: await this.detail(groupId, user.id), warnings };
     }
 
-    public async update(actor: AuditActor, id: number, body: any) {
-        const user = await this.require(id);
-        const input = await this.parse(body, user);
+    public async update(actor: AuditActor, groupId: number, id: number, body: any) {
+        const user = await this.require(groupId, id);
+        const input = await this.parse(groupId, body, user);
         if (input.isAdmin === false && user.id === actor.id) {
             throw new BadRequestException('You cannot remove your own admin access.');
         }
@@ -155,13 +157,13 @@ export class ParticipantsService {
             }
         }
         if (Object.keys(changes).length === 0) {
-            return { participant: await this.detail(id), warnings: [] };
+            return { participant: await this.detail(groupId, id), warnings: [] };
         }
         const warnings: string[] = [];
         await this.sequelize.transaction(async transaction => {
             if (changes.name) {
                 // Assignments store the recipient's name, so the Santa's assignment follows the rename.
-                const santas = await this.userRepository.findAll({ transaction });
+                const santas = await this.userRepository.findAll({ where: { groupId }, transaction });
                 for (const santa of santas) {
                     if (!santa.giftingTo || santa.encryptionStrategy !== EncryptionStrategy.CODE) continue;
                     let recipient: string | null = null;
@@ -176,7 +178,7 @@ export class ParticipantsService {
                         await this.userRepository.update(assignment, { where: { id: santa.id }, transaction });
                     }
                 }
-                if (((await this.santaAudioService.nameClipCounts()).get(user.id) ?? 0) > 0) {
+                if (((await this.santaAudioService.nameClipCounts(groupId)).get(user.id) ?? 0) > 0) {
                     warnings.push('Santa\'s name clips now say the old name. Regenerate them on the Santa audio page.');
                 }
             }
@@ -184,21 +186,22 @@ export class ParticipantsService {
             for (const key of Object.keys(changes)) {
                 values[key] = input[key as EditableField];
             }
-            await this.userRepository.update(values, { where: { id }, transaction });
+            await this.userRepository.update(values, { where: { id, groupId }, transaction });
         });
         const changedLabels = Object.keys(changes).map(key => FIELD_LABELS[key as EditableField]);
         await this.auditService.log(actor, {
+            groupId,
             action: 'participant.update',
             entityType: 'participant',
             entityId: id,
             summary: `Updated ${input.name ?? user.name}: ${changedLabels.join(', ')}`,
             details: { changes: redactFacts(changes) },
         });
-        return { participant: await this.detail(id), warnings };
+        return { participant: await this.detail(groupId, id), warnings };
     }
 
-    public async remove(actor: AuditActor, id: number) {
-        const user = await this.require(id);
+    public async remove(actor: AuditActor, groupId: number, id: number) {
+        const user = await this.require(groupId, id);
         if (user.id === actor.id) {
             throw new BadRequestException('You cannot delete yourself.');
         }
@@ -206,9 +209,10 @@ export class ParticipantsService {
         await this.sequelize.transaction(async transaction => {
             await this.userRepository.update({ lastYearGiftingToId: null }, { where: { lastYearGiftingToId: id }, transaction });
             await Dossier.destroy({ where: { userId: id }, transaction });
-            await this.userRepository.destroy({ where: { id }, transaction });
+            await this.userRepository.destroy({ where: { id, groupId }, transaction });
         });
         await this.auditService.log(actor, {
+            groupId,
             action: 'participant.delete',
             entityType: 'participant',
             entityId: id,
@@ -218,8 +222,9 @@ export class ParticipantsService {
         return { warnings: drawn ? ['This person was part of the current draw. Run the draw again.'] : [] };
     }
 
-    public async require(id: number): Promise<User> {
-        const user = await this.userRepository.findByPk(id);
+    /** A participant of this group; one of another group is "not found", never revealed. */
+    public async require(groupId: number, id: number): Promise<User> {
+        const user = await this.userRepository.findOne({ where: { id, groupId } });
         if (!user) {
             throw new NotFoundException('Participant not found');
         }
@@ -227,7 +232,7 @@ export class ParticipantsService {
     }
 
     /** Validates a create/update body. Fields missing from the body stay undefined (unchanged). */
-    private async parse(body: any, existing: User | null): Promise<ParticipantInput> {
+    private async parse(groupId: number, body: any, existing: User | null): Promise<ParticipantInput> {
         const input: ParticipantInput = {
             name: readString(body, 'name', { required: !existing, max: 100 }),
             email: readString(body, 'email', { max: 200 }),
@@ -240,7 +245,8 @@ export class ParticipantsService {
         if (input.name !== undefined && !input.name) {
             throw new BadRequestException('name cannot be empty');
         }
-        const others = (await this.userRepository.findAll()).filter(user => user.id !== existing?.id);
+        // Names and e-mails are unique within the group; the same person may be in other groups too.
+        const others = (await this.userRepository.findAll({ where: { groupId } })).filter(user => user.id !== existing?.id);
         if (input.name && others.some(user => user.name.toLowerCase() === input.name.toLowerCase())) {
             throw new BadRequestException(`There is already a participant called ${input.name}`);
         }
@@ -250,10 +256,10 @@ export class ParticipantsService {
                 throw new BadRequestException('email does not look like an e-mail address');
             }
             if (input.email && others.some(user => user.email?.toLowerCase() === input.email)) {
-                throw new BadRequestException(`${input.email} already belongs to another participant`);
+                throw new BadRequestException(`${input.email} already belongs to another participant in this group`);
             }
         }
-        if (input.familyId && !(await this.familyRepository.findByPk(input.familyId))) {
+        if (input.familyId && !(await this.familyRepository.findOne({ where: { id: input.familyId, groupId } }))) {
             throw new BadRequestException('Family not found');
         }
         if (input.lastYearGiftingToId) {

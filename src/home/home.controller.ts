@@ -2,12 +2,14 @@ import { Body, Controller, Get, Logger, Post, Render, Req, Res } from '@nestjs/c
 import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { UserService } from 'src/user/user.service';
+import { User } from 'src/user/entities/user.entity';
 import { EncryptionService, EncryptionStrategy } from 'src/encryption/encryption.service';
 import { DossierService } from 'src/dossier/dossier.service';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { SettingsService } from 'src/settings/settings.service';
-import { resolveAdmin } from 'src/auth/admin.guard';
+import { AdminAccessService } from 'src/auth/admin-access.service';
 import { SessionService } from 'src/auth/session.service';
+import { GroupService } from 'src/group/group.service';
 import { CODE_CHECK_THROTTLE } from 'src/security/throttle';
 
 @Controller()
@@ -19,6 +21,8 @@ export class HomeController {
     private readonly analyticsService: AnalyticsService,
     private readonly settingsService: SettingsService,
     private readonly sessionService: SessionService,
+    private readonly adminAccess: AdminAccessService,
+    private readonly groupService: GroupService,
     private readonly logger: Logger,
   ) { }
 
@@ -51,8 +55,9 @@ export class HomeController {
         inputType: 'password',
         prefill: user.decryptionCode,
         loggedIn: true,
-        isAdmin: user.isAdmin,
+        isAdmin: await this.adminAccess.canManageGroup(request, user.groupId),
         userName: user.name,
+        groupName: await this.switchableGroupName(request, user),
         year,
         santaClips,
       });
@@ -72,14 +77,15 @@ export class HomeController {
       return { error: 'Seda koodi ei leitud süsteemist!' };
     }
     this.sessionService.start(response, user);
-    const settings = this.settingsService.get();
-    if (!settings.revealOpen && !(await resolveAdmin(request, this.userService))) {
+    const settings = this.settingsService.get(user.groupId);
+    if (!settings.revealOpen && !(await this.adminAccess.canManageGroup(request, user.groupId))) {
       await this.analyticsService.track('reveal_closed', request, { userId: user.id });
       return { error: settings.revealClosedMessage };
     }
     try {
       const giftingTo = this.encryptionService.decryptGiftingTo(user);
-      const recipient = await this.userService.getByName(giftingTo);
+      // Names are unique per group only: the recipient is always looked up in the Santa's own group.
+      const recipient = await this.userService.getByName(user.groupId, giftingTo);
       const dossier = await this.dossierService.getRevealDossier(recipient);
       await this.analyticsService.track('reveal', request, { userId: user.id });
       return { name: user.name, strategy: user.encryptionStrategy, giftingTo, dossier };
@@ -94,7 +100,63 @@ export class HomeController {
   @Get('kiri')
   @Render('letter')
   async letter(@Req() request: Request) {
-    await this.analyticsService.track('letter_view', request, { userId: this.sessionService.readUserId(request) });
-    return { letterUrl: this.settingsService.letterUrl() };
+    const user = await this.sessionService.getUser(request);
+    await this.analyticsService.track('letter_view', request, { userId: user?.id ?? null });
+    // Each group has its own letter; visitors who are not signed in get the site-wide one (GOOGLE_DOC_LETTER_LINK).
+    return {
+      letterUrl: user ? this.settingsService.letterUrl(user.groupId) : process.env.GOOGLE_DOC_LETTER_LINK || '',
+      groupName: user ? await this.switchableGroupName(request, user) : null,
+    };
+  }
+
+  /** For someone signed in with Google who takes part in several groups: pick which group's mission to open. */
+  @Get('grupp')
+  async chooseGroup(@Req() request: Request, @Res() response: Response) {
+    const memberships = await this.ownMemberships(request);
+    if (memberships.length < 2) {
+      return response.redirect(303, '/');
+    }
+    const current = this.sessionService.readUserId(request);
+    const groups = await this.groupService.namesById(memberships.map(member => member.groupId));
+    return response.render('groups', {
+      choices: memberships.map(member => ({
+        userId: member.id,
+        groupName: groups.get(member.groupId) ?? '?',
+        userName: member.name,
+        current: member.id === current,
+      })),
+    });
+  }
+
+  @Post('grupp')
+  async switchGroup(@Req() request: Request, @Body() body: { userId?: unknown }, @Res() response: Response) {
+    const userId = typeof body?.userId === 'string' ? Number(body.userId) : body?.userId;
+    // Only one of the rows that belong to the Google account this browser signed in with.
+    const target = (await this.ownMemberships(request)).find(member => member.id === userId);
+    if (target) {
+      this.sessionService.start(response, target);
+    }
+    return response.redirect(303, '/');
+  }
+
+  /**
+   * The name of the signed-in participant's group for the header's group switch, or null when there is nothing to
+   * switch to: only people in several groups need to be told which one they are looking at.
+   */
+  private async switchableGroupName(request: Request, user: User): Promise<string | null> {
+    if ((await this.ownMemberships(request)).length < 2) {
+      return null;
+    }
+    return (await this.groupService.get(user.groupId))?.name ?? null;
+  }
+
+  /**
+   * The participant rows of the Google account this browser last signed in with (none after a code link), in the
+   * groups participants can choose: disabled groups are left out.
+   */
+  private async ownMemberships(request: Request): Promise<User[]> {
+    const email = this.sessionService.googleIdentity(request);
+    const memberships = email ? await this.userService.getAllByEmail(email) : [];
+    return memberships.filter(member => this.settingsService.isGroupEnabled(member.groupId));
   }
 }

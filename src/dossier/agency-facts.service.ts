@@ -46,22 +46,25 @@ export class AgencyFactsService implements OnApplicationBootstrap {
         return facts.map(fact => fact.text);
     }
 
-    /** The facts a recipient's dossier shows. */
-    public async forRecipient(name: string | null | undefined): Promise<string[]> {
-        if (!name) {
+    /** The facts a recipient's dossier shows (how many is a setting of the recipient's group). */
+    public async forRecipient(recipient: Pick<User, 'name' | 'groupId'> | null | undefined): Promise<string[]> {
+        if (!recipient?.name) {
             return [];
         }
-        return pickAgencyFacts(name, await this.activeTexts(), this.settingsService.get().agencyFactsPerDossier);
+        return pickAgencyFacts(recipient.name, await this.activeTexts(), this.settingsService.get(recipient.groupId).agencyFactsPerDossier);
     }
 
-    /** All facts, each with the participants whose dossier currently shows it. */
-    public async list() {
+    /**
+     * All facts (shared by every group), each with the participants of the given group whose dossier currently
+     * shows it.
+     */
+    public async list(groupId: number) {
         const [facts, users] = await Promise.all([
             this.factRepository.findAll({ order: [['id', 'ASC']] }),
-            this.userRepository.findAll({ attributes: ['id', 'name'], order: [['name', 'ASC']] }),
+            this.userRepository.findAll({ where: { groupId }, attributes: ['id', 'name'], order: [['name', 'ASC']] }),
         ]);
         const active = facts.filter(fact => fact.active).map(fact => fact.text);
-        const count = this.settingsService.get().agencyFactsPerDossier;
+        const count = this.settingsService.get(groupId).agencyFactsPerDossier;
         const shownTo = new Map<string, { id: number; name: string }[]>();
         for (const user of users) {
             for (const text of pickAgencyFacts(user.name, active, count)) {
@@ -93,7 +96,7 @@ export class AgencyFactsService implements OnApplicationBootstrap {
         texts.forEach(validate);
         const created = await this.factRepository.bulkCreate(texts.map(text => ({ text, active: body?.active !== false })));
         await this.auditService.log(actor, {
-            action: 'facts.create', entityType: 'facts',
+            groupId: null, action: 'facts.create', entityType: 'facts',
             summary: texts.length === 1 ? `Added agency fact "${texts[0]}"` : `Added ${texts.length} agency facts`,
         });
         return created.map(fact => fact.id);
@@ -116,7 +119,7 @@ export class AgencyFactsService implements OnApplicationBootstrap {
         }
         await this.factRepository.update(changes, { where: { id } });
         await this.auditService.log(actor, {
-            action: 'facts.update', entityType: 'facts', entityId: id,
+            groupId: null, action: 'facts.update', entityType: 'facts', entityId: id,
             summary: changed.includes('text')
                 ? `Edited agency fact "${changes.text}"`
                 : `${changes.active ? 'Enabled' : 'Disabled'} agency fact "${fact.text}"`,
@@ -128,7 +131,7 @@ export class AgencyFactsService implements OnApplicationBootstrap {
         const fact = await this.require(id);
         await this.factRepository.destroy({ where: { id } });
         await this.auditService.log(actor, {
-            action: 'facts.delete', entityType: 'facts', entityId: id,
+            groupId: null, action: 'facts.delete', entityType: 'facts', entityId: id,
             summary: `Deleted agency fact "${fact.text}"`,
         });
         return { text: fact.text, active: fact.active };

@@ -22,19 +22,20 @@ export class OverviewService {
         private readonly settingsService: SettingsService,
     ) { }
 
-    public async overview() {
+    /** The dashboard of one group. `isSuperAdmin` decides whether the audio step links to the audio page. */
+    public async overview(groupId: number, isSuperAdmin: boolean) {
         const to = new Date();
         const from = new Date(to.getTime() - 14 * 24 * 60 * 60 * 1000);
         const [participants, families, draw, constraints, audit, events, report] = await Promise.all([
-            this.participantsService.list(),
-            this.familyRepository.count(),
-            this.drawService.status(),
-            this.drawService.constraints(),
-            this.auditService.list({ limit: 8, offset: 0 }),
-            this.analyticsService.recentEvents({ limit: 8, offset: 0 }),
-            this.analyticsService.report({ from, to, excludeAdmins: false }),
+            this.participantsService.list(groupId),
+            this.familyRepository.count({ where: { groupId } }),
+            this.drawService.status(groupId),
+            this.drawService.constraints(groupId),
+            this.auditService.list({ groupId, limit: 8, offset: 0 }),
+            this.analyticsService.recentEvents({ groupId, limit: 8, offset: 0 }),
+            this.analyticsService.report({ groupId, from, to, excludeAdmins: false }),
         ]);
-        const settings = this.settingsService.get();
+        const settings = this.settingsService.get(groupId);
         const total = participants.length;
         const count = (predicate: (p: typeof participants[number]) => boolean) => participants.filter(predicate).length;
 
@@ -73,9 +74,10 @@ export class OverviewService {
                 detail: `${dossierComplete} of ${total} have codename, brief and photo`,
             },
             {
-                key: 'audio', label: "Generate Santa's name clips", href: '/admin/audio',
+                // Generating clips costs money, so only the super admin can; group admins see the progress.
+                key: 'audio', label: "Generate Santa's name clips", href: isSuperAdmin ? '/admin/audio' : '',
                 status: total > 0 && content.nameClips === total ? 'done' : 'warn',
-                detail: `${content.nameClips} of ${total} have a clip`,
+                detail: `${content.nameClips} of ${total} have a clip` + (isSuperAdmin ? '' : ' (the site organiser generates them)'),
             },
             {
                 key: 'draw', label: 'Run the draw', href: '/admin/draw',
@@ -116,7 +118,7 @@ export class OverviewService {
                 exchangeDate: settings.exchangeDate,
                 giftBudget: settings.giftBudget,
                 adminNotes: settings.adminNotes,
-                letterUrlSet: !!this.settingsService.letterUrl(),
+                letterUrlSet: !!this.settingsService.letterUrl(groupId),
             },
             timeZone: REPORT_TIME_ZONE,
             daily: report.daily,

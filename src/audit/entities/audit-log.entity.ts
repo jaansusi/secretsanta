@@ -1,10 +1,13 @@
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
 
-/** One change made through the admin panel. Names are copied in so entries stay readable after deletes. */
+/**
+ * One change made through the admin panel. Names are copied in so entries stay readable after deletes.
+ * groupId is the group the change was made in; null for shared content (Santa audio, agency facts, groups).
+ */
 @Table({
     tableName: 'audit_log',
     updatedAt: false,
-    indexes: [{ fields: ['createdAt'] }, { fields: ['entityType', 'entityId'] }, { fields: ['action'] }],
+    indexes: [{ fields: ['createdAt'] }, { fields: ['entityType', 'entityId'] }, { fields: ['action'] }, { fields: ['groupId', 'createdAt'] }],
 })
 export class AuditLog extends Model {
     @Column({
@@ -12,6 +15,9 @@ export class AuditLog extends Model {
         autoIncrement: true,
     })
     id: number;
+
+    @Column
+    groupId: number;
 
     @Column
     actorId: number;

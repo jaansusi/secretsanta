@@ -31,9 +31,13 @@ const CLIP_META = { exclude: ['audio'] };
 
 export type ClipStatus = 'ready' | 'stale' | 'missing';
 
-/** What to generate: everything outdated, one line (for everyone), one participant, or one clip. */
+/**
+ * What to generate: everything outdated, one line (for everyone), one participant, or one clip. Name clips are
+ * only generated for the participants of `groupId`; intro and outro clips are shared by every group.
+ */
 export interface GenerationScope {
     scope: 'outdated' | 'line' | 'participant' | 'clip';
+    groupId: number;
     lineId?: number;
     userId?: number;
     /** Also regenerate clips that are up to date. */
@@ -88,7 +92,7 @@ export class SantaAudioService {
         const lineText = validateText(lineKind, text);
         const last = await this.lineRepository.max<number, SantaLine>('position', { where: { kind: lineKind } });
         const line = await this.lineRepository.create({ kind: lineKind, text: lineText, position: (last ?? 0) + 1 });
-        await this.auditService.log(actor, { action: 'audio.line_create', entityType: 'audio', entityId: line.id, summary: `Added a Santa ${lineKind} line` });
+        await this.auditService.log(actor, { groupId: null, action: 'audio.line_create', entityType: 'audio', entityId: line.id, summary: `Added a Santa ${lineKind} line` });
         return line;
     }
 
@@ -97,7 +101,7 @@ export class SantaAudioService {
         const lineText = validateText(line.kind, text);
         if (lineText !== line.text) {
             await this.lineRepository.update({ text: lineText }, { where: { id } });
-            await this.auditService.log(actor, { action: 'audio.line_update', entityType: 'audio', entityId: id, summary: `Edited a Santa ${line.kind} line` });
+            await this.auditService.log(actor, { groupId: null, action: 'audio.line_update', entityType: 'audio', entityId: id, summary: `Edited a Santa ${line.kind} line` });
         }
     }
 
@@ -105,7 +109,7 @@ export class SantaAudioService {
         const line = await this.requireLine(id);
         await this.clipRepository.destroy({ where: { lineId: id } });
         await this.lineRepository.destroy({ where: { id } });
-        await this.auditService.log(actor, { action: 'audio.line_delete', entityType: 'audio', entityId: id, summary: `Deleted a Santa ${line.kind} line and its clips` });
+        await this.auditService.log(actor, { groupId: null, action: 'audio.line_delete', entityType: 'audio', entityId: id, summary: `Deleted a Santa ${line.kind} line and its clips` });
     }
 
     public async moveLine(id: number, direction: unknown) {
@@ -189,7 +193,7 @@ export class SantaAudioService {
             throw new NotFoundException('Clip not found');
         }
         await this.clipRepository.destroy({ where: { id } });
-        await this.auditService.log(actor, { action: 'audio.clip_delete', entityType: 'audio', entityId: id, summary: `Deleted a Santa ${clip.kind} clip` });
+        await this.auditService.log(actor, { groupId: null, action: 'audio.clip_delete', entityType: 'audio', entityId: id, summary: `Deleted a Santa ${clip.kind} clip` });
     }
 
     /** Up-to-date intro and outro URLs for the reveal page, in line order. */
@@ -218,12 +222,12 @@ export class SantaAudioService {
             .map(({ clip }) => this.clipUrl(clip!));
     }
 
-    /** How many up-to-date name clips each participant has. */
-    public async nameClipCounts(): Promise<Map<number, number>> {
-        const [lines, clips, users] = await Promise.all([
+    /** How many up-to-date name clips each participant of a group has. */
+    public async nameClipCounts(groupId: number): Promise<Map<number, number>> {
+        const users = await this.userRepository.findAll({ where: { groupId }, attributes: ['id', 'name'] });
+        const [lines, clips] = await Promise.all([
             this.lineRepository.findAll({ where: { kind: 'name' } }),
-            this.clipRepository.findAll({ where: { kind: 'name' }, attributes: CLIP_META }),
-            this.userRepository.findAll({ attributes: ['id', 'name'] }),
+            this.clipRepository.findAll({ where: { kind: 'name', userId: users.map(user => user.id) }, attributes: CLIP_META }),
         ]);
         const counts = new Map<number, number>();
         for (const clip of clips) {
@@ -236,12 +240,12 @@ export class SantaAudioService {
         return counts;
     }
 
-    /** Everything the admin audio page shows. */
-    public async library() {
+    /** Everything the admin audio page shows: the shared lines, and the name clips of one group's participants. */
+    public async library(groupId: number) {
         const [lines, clips, users] = await Promise.all([
             this.lines(),
             this.clipMetadata(),
-            this.userRepository.findAll({ attributes: ['id', 'name'], order: [['name', 'ASC']] }),
+            this.userRepository.findAll({ where: { groupId }, attributes: ['id', 'name'], order: [['name', 'ASC']] }),
         ]);
         const clipView = (clip: SantaClip | undefined) => clip ? {
             id: clip.id, url: this.clipUrl(clip), bytes: clip.bytes, text: clip.text,
@@ -292,7 +296,7 @@ export class SantaAudioService {
         const [lines, clips, users] = await Promise.all([
             this.lines(),
             this.clipMetadata(),
-            this.userRepository.findAll({ attributes: ['id', 'name'], order: [['name', 'ASC']] }),
+            this.userRepository.findAll({ where: { groupId: scope.groupId }, attributes: ['id', 'name'], order: [['name', 'ASC']] }),
         ]);
         const candidates: GenerationItem[] = [];
         for (const line of lines) {
@@ -374,6 +378,7 @@ export class SantaAudioService {
         job.current = null;
         job.finishedAt = new Date();
         await this.auditService.log(actor, {
+            groupId: null,
             action: 'audio.generate',
             entityType: 'audio',
             summary: `Generated ${job.done} Santa clip${job.done === 1 ? '' : 's'}${job.failed ? `, ${job.failed} failed` : ''}${job.cancelled ? ' (cancelled)' : ''}`,

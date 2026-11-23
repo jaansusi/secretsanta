@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Request, Response } from 'express';
 import { sendBinary } from 'src/common/send-binary';
 import { User } from 'src/user/entities/user.entity';
-import { adminSessionUserId } from 'src/auth/admin-session';
+import { AdminAccessService } from 'src/auth/admin-access.service';
 import { SessionService } from 'src/auth/session.service';
 import { EncryptionService, EncryptionStrategy } from 'src/encryption/encryption.service';
 import { SantaClip } from './entities/santa-clip.entity';
@@ -14,7 +14,8 @@ import { SantaAudioService } from './santa-audio.service';
  * enumerated, and they carry the generation time, so they can be cached forever.
  *
  * Intro and outro clips say no names and only need a valid URL. A name clip says a participant's name, so on
- * top of the URL it needs a session that is allowed to hear it: an admin, or that participant's own Santa.
+ * top of the URL it needs a session that is allowed to hear it: an admin of that participant's group, or that
+ * participant's own Santa.
  * A shared or leaked name-clip link therefore plays for nobody else.
  */
 @Controller('santa-audio')
@@ -25,6 +26,7 @@ export class SantaAudioController {
         private readonly encryptionService: EncryptionService,
         @InjectModel(User)
         private readonly userRepository: typeof User,
+        private readonly adminAccess: AdminAccessService,
     ) { }
 
     @Get(':file')
@@ -43,12 +45,12 @@ export class SantaAudioController {
         if (clip.kind !== 'name') {
             return true;
         }
-        const adminId = adminSessionUserId(request);
-        if (adminId !== null) {
-            const admin = await this.userRepository.findByPk(adminId, { attributes: ['id', 'isAdmin'] });
-            if (admin?.isAdmin) {
-                return true;
-            }
+        const owner = clip.userId ? await this.userRepository.findByPk(clip.userId, { attributes: ['id', 'groupId'] }) : null;
+        if (!owner) {
+            return false;
+        }
+        if (await this.adminAccess.canManageGroup(request, owner.groupId)) {
+            return true;
         }
         const santa = await this.sessionService.getUser(request);
         if (!santa || santa.encryptionStrategy !== EncryptionStrategy.CODE || !santa.giftingTo) {
@@ -56,7 +58,7 @@ export class SantaAudioController {
         }
         try {
             const recipientName = this.encryptionService.decryptGiftingTo(santa);
-            const recipient = await this.userRepository.findOne({ where: { name: recipientName }, attributes: ['id'] });
+            const recipient = await this.userRepository.findOne({ where: { groupId: santa.groupId, name: recipientName }, attributes: ['id'] });
             return !!recipient && recipient.id === clip.userId;
         } catch {
             return false;

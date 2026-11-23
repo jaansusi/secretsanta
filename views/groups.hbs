@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  {{> head pageTitle="Vali grupp · SälaSanta"}}
+  <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/dossier.css">
+  <link href="/vendor/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
+</head>
+
+<body>
+  <div class="bg">
+    {{> hoverIcons}}
+    <main role="main" class="centerer text-center">
+      <div class="briefing">
+        <h2 class="briefing-title">Vali grupp</h2>
+        <p class="briefing-greeting">Sa osaled mitmes jõululoosis. Millise grupi missiooni soovid avada?</p>
+        <div class="group-choices">
+          {{#each choices}}
+          <form method="post" action="/grupp">
+            <input type="hidden" name="userId" value="{{userId}}">
+            <button type="submit" class="button group-choice{{#if current}} current{{/if}}">
+              {{groupName}}<small>{{userName}}{{#if current}} · praegu valitud{{/if}}</small>
+            </button>
+          </form>
+          {{/each}}
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+
+</html>

@@ -6,6 +6,7 @@ import { AnalyticsService } from 'src/analytics/analytics.service';
 import { ADMIN_RETURN_PATH, endAdminSession, RETURN_TO_COOKIE, startAdminSession } from './admin-session';
 import { SessionService } from './session.service';
 import { GoogleUser } from './google.strategy';
+import { SettingsService } from 'src/settings/settings.service';
 
 @Controller('auth')
 export class AuthController {
@@ -13,6 +14,7 @@ export class AuthController {
         private readonly authService: AuthService,
         private readonly analyticsService: AnalyticsService,
         private readonly sessionService: SessionService,
+        private readonly settingsService: SettingsService,
         private readonly logger: Logger,
     ) { }
 
@@ -30,18 +32,30 @@ export class AuthController {
         res.clearCookie(RETURN_TO_COOKIE);
         let target = '/';
         try {
-            const user = await this.authService.getUserWithGoogleLogin(req.user as GoogleUser | undefined);
-            if (user == null) {
+            const signIn = await this.authService.signInWithGoogle(req.user as GoogleUser | undefined);
+            if (signIn == null) {
                 await this.analyticsService.track('login_failed', req);
                 target = adminReturn ? '/admin?error=unknown' : '/';
             } else {
-                this.sessionService.start(res, user);
-                if (user.isAdmin) {
-                    startAdminSession(res, user);
+                // Only groups that are not disabled can be signed in to. Stay in the group of the current session
+                // when it is one of them; else the first one.
+                const enabled = signIn.memberships.filter(member => this.settingsService.isGroupEnabled(member.groupId));
+                const currentId = this.sessionService.readUserId(req);
+                const user = enabled.find(member => member.id === currentId) ?? enabled[0];
+                if (user) {
+                    this.sessionService.start(res, user);
                 }
-                await this.analyticsService.track('login_google', req, { userId: user.id });
+                this.sessionService.rememberGoogleIdentity(res, signIn.email);
+                // Admin access does not depend on the group being enabled: admins can still manage a disabled group.
+                const mayAdmin = signIn.isSuperAdmin || signIn.memberships.some(member => member.isAdmin);
+                if (mayAdmin) {
+                    startAdminSession(res, signIn.email);
+                }
+                await this.analyticsService.track(user ? 'login_google' : 'login_failed', req, { userId: user?.id ?? null });
                 if (adminReturn) {
-                    target = user.isAdmin ? adminReturn : '/admin?error=forbidden';
+                    target = mayAdmin ? adminReturn : '/admin?error=forbidden';
+                } else if (enabled.length > 1) {
+                    target = '/grupp';
                 }
             }
         } catch (error) {

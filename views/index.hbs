@@ -19,6 +19,10 @@
   <canvas id="snow"></canvas>
   <div class="bg">
     {{#> hoverIcons}}
+      {{!-- The sound switch (audio.js shows it once the dossier opens). --}}
+      <button type="button" class="sound-toggle hidden" id="soundToggle" aria-label="Lülita heli välja" title="Heli">
+        <i class="bi bi-volume-up-fill"></i>
+      </button>
       {{!-- Shown once signed in (index.js). --}}
       <form method="post" action="/auth/logout" id="logoutContainer" class="hidden">
         <button type="submit" aria-label="Logi välja" title="Logi välja"><i class="bi bi-box-arrow-right"></i></button>
@@ -30,12 +34,6 @@
       {{> adminheader}}
     </div>
     {{/if}}
-    {{!-- Top-right corner: the sound switch (audio.js shows it once the dossier opens). --}}
-    <div class="corner-controls">
-      <button type="button" class="sound-toggle hidden" id="soundToggle" aria-label="Lülita heli välja" title="Heli">
-        <i class="bi bi-volume-up-fill"></i>
-      </button>
-    </div>
     <main role="main" class="centerer text-center">
 
       {{#if encryptionWithCode}}

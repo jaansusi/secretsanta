@@ -94,39 +94,41 @@ export class SantaAudioImport implements OnApplicationBootstrap {
 
         for (const file of files) {
             let line: SantaLine | undefined;
-            let user: User | undefined;
+            // A name clip goes to everyone with that name: the same person can be in several groups.
+            let owners: (User | null)[] = [null];
             const plain = /^(intro|outro)-(\d+)\.mp3$/.exec(file);
             const named = /^name-(.+)-(\d+)\.mp3$/.exec(file);
             if (plain) {
                 line = lineAt(plain[1] as SantaLineKind, parseInt(plain[2], 10));
             } else if (named) {
                 line = lineAt('name', parseInt(named[2], 10));
-                user = users.find(candidate => santaSlug(candidate.name) === named[1]);
-                if (!user) continue;
+                owners = users.filter(candidate => santaSlug(candidate.name) === named[1]);
             }
-            if (!line) continue;
+            if (!line || owners.length === 0) continue;
 
             const path = join(CLIPS_DIR, file);
             const entry = manifest[file];
             const generatedAt = entry?.generatedAt ? new Date(entry.generatedAt) : statSync(path).mtime;
-            const current = existing.find(clip => clip.lineId === line!.id && (clip.userId ?? null) === (user?.id ?? null));
-            if (current && new Date(current.generatedAt) >= generatedAt) {
-                continue;
+            for (const user of owners) {
+                const current = existing.find(clip => clip.lineId === line.id && (clip.userId ?? null) === (user?.id ?? null));
+                if (current && new Date(current.generatedAt) >= generatedAt) {
+                    continue;
+                }
+                const audio = readFileSync(path);
+                await this.santaAudioService.upsertClip({
+                    lineId: line.id,
+                    kind: line.kind,
+                    userId: user?.id ?? null,
+                    text: entry?.text ?? this.santaAudioService.expectedText(line, user),
+                    audio,
+                    mimeType: 'audio/mpeg',
+                    bytes: audio.length,
+                    modelId: entry?.modelId ?? null,
+                    voiceId: entry?.voiceId ?? null,
+                    generatedAt,
+                } as any);
+                imported++;
             }
-            const audio = readFileSync(path);
-            await this.santaAudioService.upsertClip({
-                lineId: line.id,
-                kind: line.kind,
-                userId: user?.id ?? null,
-                text: entry?.text ?? this.santaAudioService.expectedText(line, user ?? null),
-                audio,
-                mimeType: 'audio/mpeg',
-                bytes: audio.length,
-                modelId: entry?.modelId ?? null,
-                voiceId: entry?.voiceId ?? null,
-                generatedAt,
-            } as any);
-            imported++;
         }
         if (imported) {
             this.logger.log(`Imported ${imported} Santa clips from ${CLIPS_DIR}`);

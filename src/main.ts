@@ -8,7 +8,7 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { engine } from 'express-handlebars';
 import { WinstonLoggerService } from './logger/logger.service';
-import { httpsOrigin, isSecureDeployment, publicOrigin, validateEnvironment } from './config/env';
+import { isSecureDeployment, publicOrigin, validateEnvironment } from './config/env';
 import { SettingsService } from './settings/settings.service';
 import { originCheck } from './security/origin-check.middleware';
 
@@ -43,9 +43,10 @@ async function bootstrap() {
   }
   app.disable('x-powered-by');
 
-  // The letter on /kiri is an admin setting that can change at runtime, so frame-src follows it per request.
+  // The letter on /kiri is a per-group admin setting that can change at runtime, so frame-src follows the
+  // groups' letter origins per request.
   const settingsService = app.get(SettingsService);
-  const letterFrameSource = () => httpsOrigin(settingsService.letterUrl()) ?? "'none'";
+  const letterFrameSource = () => settingsService.letterOrigins().join(' ') || "'none'";
   app.use(helmet({
     contentSecurityPolicy: {
       useDefaults: false,

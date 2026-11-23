@@ -13,8 +13,9 @@ function setup() {
         { id: 4, kind: 'outro', position: 1, text: 'Edu, agent!' },
     ];
     const clips: any[] = [];
-    const users: any[] = [{ id: 10, name: 'Mari' }, { id: 11, name: 'Jüri' }];
-    const matches = (row: any, where: any = {}) => Object.entries(where).every(([key, value]) => (row[key] ?? null) === value);
+    const users: any[] = [{ id: 10, groupId: 1, name: 'Mari' }, { id: 11, groupId: 1, name: 'Jüri' }, { id: 12, groupId: 2, name: 'Other' }];
+    const matches = (row: any, where: any = {}) => Object.entries(where).every(([key, value]) =>
+        Array.isArray(value) ? value.includes(row[key] ?? null) : (row[key] ?? null) === value);
     const repo = (rows: any[]) => ({
         findAll: async (options: any = {}) => rows.filter(row => matches(row, options.where))
             .sort((a, b) => (a.kind ?? '').localeCompare(b.kind ?? '') || (a.position ?? 0) - (b.position ?? 0)),
@@ -49,15 +50,15 @@ describe('SantaAudioService', () => {
 
     it('plans one clip per intro/outro and one per name line and participant', async () => {
         const { service } = setup();
-        const preview = await service.preview({ scope: 'outdated' });
+        const preview = await service.preview({ scope: 'outdated', groupId: 1 });
         expect(preview.clips).toBe(1 + 2 * 2 + 1);
-        const items = await service.plan({ scope: 'participant', userId: 11 });
+        const items = await service.plan({ scope: 'participant', groupId: 1, userId: 11 });
         expect(items.map(item => item.text)).toEqual(['Sinu sihtmärk on Jüri.', 'Nimi on Jüri.']);
     });
 
     it('generates in the background and then only plays up-to-date clips', async () => {
         const { service, clips, audit } = setup();
-        await service.start(actor, { scope: 'outdated' });
+        await service.start(actor, { scope: 'outdated', groupId: 1 });
         await waitForJob(service);
         expect(service.jobState()).toMatchObject({ running: false, done: 6, failed: 0 });
         expect(clips.find(c => c.userId === 10 && c.lineId === 2).audio.toString()).toBe('mp3:Sinu sihtmärk on Mari.');
@@ -67,12 +68,12 @@ describe('SantaAudioService', () => {
         expect(playlist.intros).toHaveLength(1);
         expect(playlist.intros[0]).toMatch(/^\/santa-audio\/\d+\.\d+\.[A-Za-z0-9_-]{22}\.mp3$/);
         expect(await service.nameClipUrls({ id: 10, name: 'Mari' } as any)).toHaveLength(2);
-        expect((await service.plan({ scope: 'outdated' }))).toHaveLength(0);
+        expect((await service.plan({ scope: 'outdated', groupId: 1 }))).toHaveLength(0);
     });
 
     it('serves a clip only through its signed URL, so clips cannot be enumerated', async () => {
         const { service, clips } = setup();
-        await service.start(actor, { scope: 'outdated' });
+        await service.start(actor, { scope: 'outdated', groupId: 1 });
         await waitForJob(service);
         const [url] = await service.nameClipUrls({ id: 10, name: 'Mari' } as any);
         const file = url.split('/').pop()!;
@@ -98,11 +99,11 @@ describe('SantaAudioService', () => {
 
     it('marks clips out of date when the text or the name changes', async () => {
         const { service, users } = setup();
-        await service.start(actor, { scope: 'outdated' });
+        await service.start(actor, { scope: 'outdated', groupId: 1 });
         await waitForJob(service);
         await service.updateLine(actor, 1, 'Tere, agent!');
         users[0].name = 'Mari-Liis';
-        const library = await service.library();
+        const library = await service.library(1);
         expect(library.intros[0].status).toBe('stale');
         expect(library.participants.find(p => p.id === 10)!.clips.every(c => c.status === 'stale')).toBe(true);
         expect(library.summary).toMatchObject({ stale: 3, ready: 3, missing: 0 });
@@ -116,7 +117,7 @@ describe('SantaAudioService', () => {
             if (text.includes('Jüri')) throw new Error('quota exceeded');
             return Buffer.from('ok');
         });
-        await service.start(actor, { scope: 'outdated' });
+        await service.start(actor, { scope: 'outdated', groupId: 1 });
         await waitForJob(service);
         expect(service.jobState()).toMatchObject({ done: 4, failed: 2 });
         expect(service.jobState()!.errors[0]).toContain('quota exceeded');
@@ -134,7 +135,7 @@ describe('SantaAudioService', () => {
     it('refuses to start without ElevenLabs configured', async () => {
         const { service } = setup();
         delete process.env.ELEVENLABS_API_KEY;
-        await expect(service.start(actor, { scope: 'outdated' })).rejects.toThrow('ELEVENLABS_API_KEY');
+        await expect(service.start(actor, { scope: 'outdated', groupId: 1 })).rejects.toThrow('ELEVENLABS_API_KEY');
     });
 });
 

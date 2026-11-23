@@ -7,6 +7,7 @@ import { randomBytes } from 'crypto';
 import { AnalyticsEvent } from './entities/analytics-event.entity';
 import { EventType, VISIT_TYPES } from './event-types';
 import { isBot, parseUserAgent } from './user-agent';
+import { User } from 'src/user/entities/user.entity';
 
 const VISITOR_COOKIE = 'santa_vid';
 const VISITOR_COOKIE_MAX_AGE = 400 * 24 * 60 * 60 * 1000;
@@ -16,10 +17,13 @@ export const REPORT_TIME_ZONE = process.env.ADMIN_TIME_ZONE || 'Europe/Tallinn';
 
 export interface TrackOptions {
     userId?: number | null;
+    /** Defaults to the participant's group; events without a participant have no group. */
+    groupId?: number | null;
     meta?: Record<string, unknown>;
 }
 
 export interface ReportRange {
+    groupId: number;
     from: Date;
     to: Date;
     excludeAdmins: boolean;
@@ -40,6 +44,8 @@ export class AnalyticsService {
     constructor(
         @InjectModel(AnalyticsEvent)
         private readonly eventRepository: typeof AnalyticsEvent,
+        @InjectModel(User)
+        private readonly userRepository: typeof User,
         @InjectConnection()
         private readonly sequelize: Sequelize,
         private readonly logger: Logger,
@@ -53,9 +59,13 @@ export class AnalyticsService {
                 return;
             }
             const parsed = parseUserAgent(userAgent);
+            const userId = options.userId ?? null;
+            const groupId = options.groupId !== undefined ? options.groupId
+                : userId ? (await this.userRepository.findByPk(userId, { attributes: ['groupId'] }))?.groupId ?? null : null;
             await this.eventRepository.create({
                 type,
-                userId: options.userId ?? null,
+                userId,
+                groupId,
                 visitorId: request ? this.visitorId(request) : null,
                 path: request ? request.path : null,
                 device: parsed.device,
@@ -84,8 +94,8 @@ export class AnalyticsService {
         return id;
     }
 
-    /** Per-participant activity since a point in time (normally the latest draw). */
-    public async participantActivity(since: Date | null): Promise<Map<number, ParticipantActivity>> {
+    /** Per-participant activity of one group since a point in time (normally the group's latest draw). */
+    public async participantActivity(groupId: number, since: Date | null): Promise<Map<number, ParticipantActivity>> {
         const rows = await this.sequelize.query<any>(`
             SELECT "userId",
                    MAX("createdAt") AS "lastSeen",
@@ -95,9 +105,9 @@ export class AnalyticsService {
                    BOOL_OR(type = 'briefing_complete') AS "briefingComplete",
                    (ARRAY_AGG(device ORDER BY "createdAt" DESC))[1] AS device
             FROM analytics_event
-            WHERE "userId" IS NOT NULL AND "createdAt" >= :since
+            WHERE "groupId" = :groupId AND "userId" IS NOT NULL AND "createdAt" >= :since
             GROUP BY "userId"`, {
-            replacements: { since: since ?? new Date(0), visitTypes: VISIT_TYPES },
+            replacements: { groupId, since: since ?? new Date(0), visitTypes: VISIT_TYPES },
             type: QueryTypes.SELECT,
         });
         const result = new Map<number, ParticipantActivity>();
@@ -115,9 +125,9 @@ export class AnalyticsService {
         return result;
     }
 
-    public async recentEvents(options: { limit: number; offset: number; type?: string; userId?: number }) {
-        const where: string[] = [];
-        const replacements: Record<string, unknown> = { limit: options.limit, offset: options.offset };
+    public async recentEvents(options: { groupId: number; limit: number; offset: number; type?: string; userId?: number }) {
+        const where: string[] = ['e."groupId" = :groupId'];
+        const replacements: Record<string, unknown> = { groupId: options.groupId, limit: options.limit, offset: options.offset };
         if (options.type) {
             where.push('e.type = :type');
             replacements.type = options.type;
@@ -126,7 +136,7 @@ export class AnalyticsService {
             where.push('e."userId" = :userId');
             replacements.userId = options.userId;
         }
-        const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+        const whereSql = `WHERE ${where.join(' AND ')}`;
         const items = await this.sequelize.query<any>(`
             SELECT e.id, e.type, e."userId", u.name AS "userName", e.device, e.browser, e.os, e.path, e.meta, e."createdAt"
             FROM analytics_event e LEFT JOIN "user" u ON u.id = e."userId"
@@ -143,12 +153,13 @@ export class AnalyticsService {
     /** Everything the analytics page shows, scoped to one date range. */
     public async report(range: ReportRange) {
         const replacements = {
+            groupId: range.groupId,
             from: range.from,
             to: range.to,
             tz: REPORT_TIME_ZONE,
             visitTypes: VISIT_TYPES,
         };
-        const scope = `"createdAt" >= :from AND "createdAt" < :to` +
+        const scope = `"groupId" = :groupId AND "createdAt" >= :from AND "createdAt" < :to` +
             (range.excludeAdmins ? ` AND ("userId" IS NULL OR "userId" NOT IN (SELECT id FROM "user" WHERE "isAdmin" = true))` : '');
         const select = (sql: string): Promise<any[]> => this.sequelize.query<any>(sql, { replacements, type: QueryTypes.SELECT });
 
@@ -171,7 +182,7 @@ export class AnalyticsService {
                            COUNT(DISTINCT "userId") FILTER (WHERE type = 'briefing_complete')::int AS "participantsHeardSanta",
                            COUNT(*) FILTER (WHERE type IN (:visitTypes))::int AS visits
                     FROM analytics_event WHERE ${scope}`),
-            select(`SELECT COUNT(*)::int AS count FROM "user"` + (range.excludeAdmins ? ` WHERE "isAdmin" = false` : '')),
+            select(`SELECT COUNT(*)::int AS count FROM "user" WHERE "groupId" = :groupId` + (range.excludeAdmins ? ` AND "isAdmin" = false` : '')),
             select(`SELECT u.id AS "userId", u.name,
                            COUNT(e.id) FILTER (WHERE e.type IN (:visitTypes))::int AS visits,
                            COUNT(e.id) FILTER (WHERE e.type = 'reveal')::int AS reveals,
@@ -181,7 +192,7 @@ export class AnalyticsService {
                            (ARRAY_AGG(e.device ORDER BY e."createdAt" DESC) FILTER (WHERE e.id IS NOT NULL))[1] AS device
                     FROM "user" u
                     LEFT JOIN analytics_event e ON e."userId" = u.id AND e."createdAt" >= :from AND e."createdAt" < :to
-                    ${range.excludeAdmins ? 'WHERE u."isAdmin" = false' : ''}
+                    WHERE u."groupId" = :groupId ${range.excludeAdmins ? 'AND u."isAdmin" = false' : ''}
                     GROUP BY u.id, u.name ORDER BY u.name`),
         ]);
 

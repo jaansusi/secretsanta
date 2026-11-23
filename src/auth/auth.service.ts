@@ -1,48 +1,55 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectModel } from '@nestjs/sequelize';
 import { User } from '../user/entities/user.entity';
-import { UserService } from 'src/user/user.service';
-import { ConfigService } from '@nestjs/config';
+import { UserService, superAdminEmail } from 'src/user/user.service';
+import { Group } from 'src/group/entities/group.entity';
 import { GoogleUser } from './google.strategy';
+
+export interface GoogleSignIn {
+  /** The verified address, normalized. */
+  email: string;
+  /** The person's participant rows, one per group, oldest group first. Never empty. */
+  memberships: User[];
+  isSuperAdmin: boolean;
+}
 
 @Injectable()
 export class AuthService {
   constructor(
     private userService: UserService,
-    private configService: ConfigService,
+    @InjectModel(Group) private readonly groups: typeof Group,
     private readonly logger: Logger,
   ) { }
 
   /**
-   * Maps a verified Google identity to an existing participant. Unknown emails are rejected,
-   * except ADMIN_EMAIL, which is created (or promoted) as the administrator.
+   * Maps a verified Google identity to the participants with that e-mail (one per group). Unknown emails are
+   * rejected, except ADMIN_EMAIL, which is created as an admin participant of the first group.
    */
-  async getUserWithGoogleLogin(googleUser: GoogleUser | undefined): Promise<User | null> {
+  async signInWithGoogle(googleUser: GoogleUser | undefined): Promise<GoogleSignIn | null> {
     if (!googleUser?.email) {
       this.logger.warn('Google login attempt with no user data!');
       return null;
     }
-    const configuredAdmin = this.configService.get<string>('ADMIN_EMAIL') || '';
-    const adminEmail = configuredAdmin ? this.userService.normalizeEmail(configuredAdmin) : null;
     const email = this.userService.normalizeEmail(googleUser.email);
-    const isAdminEmail = adminEmail !== null && email === adminEmail;
+    const isSuperAdmin = email === superAdminEmail();
 
-    const existingUser = await this.userService.getByEmail(email);
-    if (existingUser) {
-      if (isAdminEmail && !existingUser.isAdmin) {
-        await this.userService.setAdmin(existingUser.id, true);
-        existingUser.isAdmin = true;
-      }
-      return existingUser;
+    const memberships = await this.userService.getAllByEmail(email);
+    if (memberships.length) {
+      return { email, memberships, isSuperAdmin };
     }
 
-    if (isAdminEmail) {
-      this.logger.log('Creating the administrator account from ADMIN_EMAIL.');
-      await this.userService.createUser({
-        name: `${googleUser.firstName} ${googleUser.lastName}`.trim() || email,
-        email,
-        isAdmin: true,
-      });
-      return this.userService.getByEmail(email);
+    if (isSuperAdmin) {
+      // There is always at least one group (see migrateToGroups).
+      const group = await this.groups.findOne({ order: [['id', 'ASC']] });
+      if (group) {
+        this.logger.log(`Creating the administrator account from ADMIN_EMAIL in group #${group.id}.`);
+        await this.userService.createUser(group.id, {
+          name: `${googleUser.firstName} ${googleUser.lastName}`.trim() || email,
+          email,
+          isAdmin: true,
+        });
+        return { email, memberships: await this.userService.getAllByEmail(email), isSuperAdmin };
+      }
     }
 
     this.logger.warn('Google login for an email that is not a participant was rejected.');

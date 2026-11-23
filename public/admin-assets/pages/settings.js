@@ -10,6 +10,14 @@ export async function render(view) {
         ${pageHead({ title: 'Settings' })}
         <form id="settingsForm" class="stack" novalidate>
             <section class="card">
+                <div class="card-head"><h2>Group</h2></div>
+                <div class="card-body stack">
+                    <label class="switch"><input type="checkbox" name="groupEnabled" ${settings.groupEnabled ? 'checked' : ''}><span class="track"></span>
+                        <span class="label">Group is enabled ${info('When off, the group is left out of the group selection for people who take part in several groups, and Google sign-in never opens it. Personal links keep working, and admins can still manage the group here.', { align: 'left' })}</span></label>
+                    ${settings.groupEnabled ? '' : html`<div class="callout callout-warn"><i class="bi bi-eye-slash"></i><span>This group is disabled: participants cannot choose it or sign in to it with Google.</span></div>`}
+                </div>
+            </section>
+            <section class="card">
                 <div class="card-head"><h2>Missions</h2></div>
                 <div class="card-body stack">
                     <label class="switch"><input type="checkbox" name="revealOpen" ${settings.revealOpen ? 'checked' : ''}><span class="track"></span>
@@ -188,6 +196,7 @@ export async function render(view) {
             settings = await api('/settings', {
                 method: 'PUT',
                 body: {
+                    groupEnabled: data.get('groupEnabled') === 'on',
                     revealOpen: data.get('revealOpen') === 'on',
                     showFacts: data.get('showFacts') === 'on',
                     revealClosedMessage: String(data.get('revealClosedMessage')),

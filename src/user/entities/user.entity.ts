@@ -1,9 +1,21 @@
-import { Column, Table, Model, BelongsTo, HasMany } from 'sequelize-typescript';
+import { Op } from 'sequelize';
+import { Column, Table, Model, BelongsTo, HasMany, ForeignKey } from 'sequelize-typescript';
 import { EncryptionStrategy } from 'src/encryption/encryption.service';
 import { Family } from 'src/family/entities/family.entity';
+import { Group } from 'src/group/entities/group.entity';
 
+/**
+ * A participant of one group. The same person can take part in several groups: they then have one row
+ * per group (each with its own link, recipient, dossier and maze games), matched by e-mail at Google sign-in.
+ */
 @Table({
     tableName: 'user',
+    indexes: [
+        { name: 'user_group_name', unique: true, fields: ['groupId', 'name'] },
+        { name: 'user_group_email', unique: true, fields: ['groupId', 'email'] },
+        // A personal link leads to exactly one participant, in whichever group (cleared codes are '').
+        { name: 'user_decryption_code', unique: true, fields: ['decryptionCode'], where: { decryptionCode: { [Op.ne]: '' } } },
+    ],
 })
 export class User extends Model {
     @Column({
@@ -12,14 +24,19 @@ export class User extends Model {
     })
     id: number;
 
-    @Column({
-        unique: true,
-    })
+    @ForeignKey(() => Group)
+    @Column({ allowNull: false })
+    groupId: number;
+
+    @BelongsTo(() => Group, { foreignKey: 'groupId', onDelete: 'CASCADE' })
+    group: Group;
+
+    /** Unique within the group. */
+    @Column
     name: string;
 
-    @Column({
-        unique: true,
-    })
+    /** Unique within the group (normalized, see UserService.normalizeEmail). */
+    @Column
     email: string;
 
     @Column

@@ -5,7 +5,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request, Response } from 'express';
 import { AdminGuard } from 'src/auth/admin.guard';
-import { CurrentAdmin } from 'src/auth/admin-session';
+import { CurrentAdmin, CurrentGroupId } from 'src/auth/admin-session';
 import { User } from 'src/user/entities/user.entity';
 import { DossierService } from 'src/dossier/dossier.service';
 import { DossierAssetKind } from 'src/dossier/entities/dossier.entity';
@@ -35,38 +35,39 @@ export class ParticipantsController {
     ) { }
 
     @Get()
-    list() {
-        return this.participantsService.list();
+    list(@CurrentGroupId() groupId: number) {
+        return this.participantsService.list(groupId);
     }
 
     @Get(':id')
-    detail(@Param('id', ParseIntPipe) id: number) {
-        return this.participantsService.detail(id);
+    detail(@CurrentGroupId() groupId: number, @Param('id', ParseIntPipe) id: number) {
+        return this.participantsService.detail(groupId, id);
     }
 
     @Post()
-    create(@CurrentAdmin() admin: User, @Body() body: any) {
-        return this.participantsService.create(admin, body);
+    create(@CurrentAdmin() admin: User, @CurrentGroupId() groupId: number, @Body() body: any) {
+        return this.participantsService.create(admin, groupId, body);
     }
 
     @Patch(':id')
-    update(@CurrentAdmin() admin: User, @Param('id', ParseIntPipe) id: number, @Body() body: any) {
-        return this.participantsService.update(admin, id, body);
+    update(@CurrentAdmin() admin: User, @CurrentGroupId() groupId: number, @Param('id', ParseIntPipe) id: number, @Body() body: any) {
+        return this.participantsService.update(admin, groupId, id, body);
     }
 
     @Delete(':id')
-    remove(@CurrentAdmin() admin: User, @Param('id', ParseIntPipe) id: number) {
-        return this.participantsService.remove(admin, id);
+    remove(@CurrentAdmin() admin: User, @CurrentGroupId() groupId: number, @Param('id', ParseIntPipe) id: number) {
+        return this.participantsService.remove(admin, groupId, id);
     }
 
     /** The participant's personal link contains their secret code, so every look is logged. */
     @Get(':id/link')
-    async link(@CurrentAdmin() admin: User, @Param('id', ParseIntPipe) id: number) {
-        const user = await this.participantsService.require(id);
+    async link(@CurrentAdmin() admin: User, @CurrentGroupId() groupId: number, @Param('id', ParseIntPipe) id: number) {
+        const user = await this.participantsService.require(groupId, id);
         if (!user.decryptionCode) {
             throw new BadRequestException('There is no link until the draw has been run');
         }
         await this.auditService.log(admin, {
+            groupId,
             action: 'participant.link_viewed', entityType: 'participant', entityId: id,
             summary: `Copied ${user.name}'s personal link`,
         });
@@ -76,8 +77,8 @@ export class ParticipantsController {
 
     /** Codename, mission brief and the facts list: everything text in the dossier. */
     @Put(':id/dossier')
-    async saveDossier(@CurrentAdmin() admin: User, @Param('id', ParseIntPipe) id: number, @Body() body: any) {
-        const user = await this.participantsService.require(id);
+    async saveDossier(@CurrentAdmin() admin: User, @CurrentGroupId() groupId: number, @Param('id', ParseIntPipe) id: number, @Body() body: any) {
+        const user = await this.participantsService.require(groupId, id);
         const codename = readString(body, 'codename', { max: 100 });
         const missionBrief = readString(body, 'missionBrief', { max: 5000 });
         const facts = readString(body, 'facts', { max: 5000 });
@@ -87,7 +88,7 @@ export class ParticipantsController {
             missionBrief: missionBrief ?? before.missionBrief,
         });
         if (facts !== undefined && facts !== (user.interestingFacts ?? '')) {
-            await this.participantsService.update(admin, id, { interestingFacts: facts });
+            await this.participantsService.update(admin, groupId, id, { interestingFacts: facts });
         }
         const changed = [
             codename !== undefined && codename !== before.codename ? 'codename' : null,
@@ -95,22 +96,28 @@ export class ParticipantsController {
         ].filter(Boolean);
         if (changed.length) {
             await this.auditService.log(admin, {
-                action: 'dossier.update', entityType: 'participant', entityId: id,
+                groupId, action: 'dossier.update', entityType: 'participant', entityId: id,
                 summary: `Edited ${user.name}'s dossier: ${changed.join(', ')}`,
             });
         }
-        return this.participantsService.detail(id);
+        return this.participantsService.detail(groupId, id);
     }
 
     @Get(':id/dossier/:kind')
-    async previewAsset(@Param('id', ParseIntPipe) id: number, @Param('kind') kind: string, @Req() request: Request, @Res() response: Response) {
-        return sendAsset(request, response, await this.dossierService.getAsset(id, parseKind(kind)));
+    async previewAsset(
+        @CurrentGroupId() groupId: number, @Param('id', ParseIntPipe) id: number, @Param('kind') kind: string,
+        @Req() request: Request, @Res() response: Response,
+    ) {
+        const assetKind = parseKind(kind);
+        await this.participantsService.require(groupId, id);
+        return sendAsset(request, response, await this.dossierService.getAsset(id, assetKind));
     }
 
     @Post(':id/dossier/:kind')
     @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_ASSET_BYTES, files: 1, fields: 0, parts: 2 } }))
     async uploadAsset(
         @CurrentAdmin() admin: User,
+        @CurrentGroupId() groupId: number,
         @Param('id', ParseIntPipe) id: number,
         @Param('kind') kind: string,
         @UploadedFile() file: UploadedAsset | undefined,
@@ -129,26 +136,28 @@ export class ParticipantsController {
                     : 'Unsupported audio: use MP3, OGG, WAV, FLAC, WebM or M4A.',
             );
         }
-        const user = await this.participantsService.require(id);
+        const user = await this.participantsService.require(groupId, id);
         await this.dossierService.saveAsset(id, assetKind, file.buffer, detectedType);
         await this.auditService.log(admin, {
+            groupId,
             action: 'dossier.upload', entityType: 'participant', entityId: id,
             summary: `Uploaded a ${assetKind} for ${user.name}`,
             details: { bytes: file.size, mimeType: detectedType, fileName: file.originalname.slice(0, 200) },
         });
-        return this.participantsService.detail(id);
+        return this.participantsService.detail(groupId, id);
     }
 
     @Delete(':id/dossier/:kind')
-    async deleteAsset(@CurrentAdmin() admin: User, @Param('id', ParseIntPipe) id: number, @Param('kind') kind: string) {
+    async deleteAsset(@CurrentAdmin() admin: User, @CurrentGroupId() groupId: number, @Param('id', ParseIntPipe) id: number, @Param('kind') kind: string) {
         const assetKind = parseKind(kind);
-        const user = await this.participantsService.require(id);
+        const user = await this.participantsService.require(groupId, id);
         await this.dossierService.deleteAsset(id, assetKind);
         await this.auditService.log(admin, {
+            groupId,
             action: 'dossier.remove', entityType: 'participant', entityId: id,
             summary: `Removed ${user.name}'s ${assetKind}`,
         });
-        return this.participantsService.detail(id);
+        return this.participantsService.detail(groupId, id);
     }
 }
 

@@ -4,11 +4,12 @@ import { Column, DataType, Model, Table } from 'sequelize-typescript';
  * One thing that happened on the public site (a page view, a reveal, Santa's briefing finishing...).
  * userId is deliberately not a foreign key, so history survives a participant being deleted.
  * No IP addresses are stored; visitorId is a random first-party cookie.
+ * groupId is the group of the participant (null for anonymous visitors), also deliberately not a foreign key.
  */
 @Table({
     tableName: 'analytics_event',
     updatedAt: false,
-    indexes: [{ fields: ['createdAt'] }, { fields: ['type'] }, { fields: ['userId'] }],
+    indexes: [{ fields: ['createdAt'] }, { fields: ['type'] }, { fields: ['userId'] }, { fields: ['groupId', 'createdAt'] }],
 })
 export class AnalyticsEvent extends Model {
     @Column({
@@ -22,6 +23,9 @@ export class AnalyticsEvent extends Model {
 
     @Column
     userId: number;
+
+    @Column
+    groupId: number;
 
     @Column
     visitorId: string;

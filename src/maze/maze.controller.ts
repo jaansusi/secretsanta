@@ -28,7 +28,7 @@ export class MazeController {
     @Get('api/state')
     async state(@Req() request: Request) {
         const user = await this.requireUser(request);
-        const [results, board] = await Promise.all([this.mazeService.myResults(user.id), this.mazeService.board(user.id)]);
+        const [results, board] = await Promise.all([this.mazeService.myResults(user.id), this.mazeService.board(user.groupId, user.id)]);
         return { levels: this.mazeService.levels(), results, board };
     }
 
@@ -57,7 +57,7 @@ export class MazeController {
             userId: user.id,
             meta: { gameId: id, moves: attempt.moves, par: attempt.par },
         });
-        const [results, board] = await Promise.all([this.mazeService.myResults(user.id), this.mazeService.board(user.id)]);
+        const [results, board] = await Promise.all([this.mazeService.myResults(user.id), this.mazeService.board(user.groupId, user.id)]);
         return { attempt, improved, results, board };
     }
 
@@ -71,7 +71,7 @@ export class MazeController {
             userId: user.id,
             meta: { gameId: id, moves: attempt.moves, par: attempt.par, cheat: true },
         });
-        const [results, board] = await Promise.all([this.mazeService.myResults(user.id), this.mazeService.board(user.id)]);
+        const [results, board] = await Promise.all([this.mazeService.myResults(user.id), this.mazeService.board(user.groupId, user.id)]);
         return { attempt, improved, results, board };
     }
 
