@@ -500,3 +500,22 @@
         margin-left: 0;
     }
 }
+
+/* Link to the maze bonus mission (/labyrint) */
+.dossier-bonus {
+    display: inline-block;
+    margin: 0.6em 0 0.2em;
+    padding: 0.35em 0.9em;
+    font-size: 0.8em;
+    color: #fff;
+    background: #8a1c14;
+    border: 1px solid #5e0d0c;
+    border-radius: 0.4em;
+    box-shadow: 2px 2px 0 #5e0d0c;
+    text-decoration: none;
+}
+
+.dossier-bonus:hover {
+    color: #fff;
+    background: #a3241a;
+}

@@ -17,6 +17,8 @@ export interface SiteSettings {
     adminNotes: string;
     /** How many agency facts each dossier shows. */
     agencyFactsPerDossier: number;
+    /** Show the recipient's "Teadaolevad faktid" (user.interestingFacts) in the dossier. Off for 2026. */
+    showFacts: boolean;
 }
 
 const DEFAULTS: SiteSettings = {
@@ -27,6 +29,7 @@ const DEFAULTS: SiteSettings = {
     giftBudget: '',
     adminNotes: '',
     agencyFactsPerDossier: 3,
+    showFacts: false,
 };
 
 const MAX_TEXT_LENGTH = 5000;

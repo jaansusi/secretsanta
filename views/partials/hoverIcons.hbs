@@ -5,4 +5,6 @@
     <a href="/kiri">
         <i class="bi bi-envelope-paper-fill"></i>
     </a>
+    {{!-- Extra icons from the page, e.g. the logout button on the main page. --}}
+    {{#if @partial-block}}{{> @partial-block}}{{/if}}
 </div>

@@ -1,7 +1,7 @@
 import { api } from '../lib/api.js';
 import { html, mount, $, on } from '../lib/dom.js';
 import { pageHead, toast, setDirty, info, confirmDialog } from '../lib/ui.js';
-import { plural } from '../lib/format.js';
+import { plural, fmtDateTime, relTime } from '../lib/format.js';
 
 export async function render(view) {
     let settings = await api('/settings');
@@ -14,6 +14,8 @@ export async function render(view) {
                 <div class="card-body stack">
                     <label class="switch"><input type="checkbox" name="revealOpen" ${settings.revealOpen ? 'checked' : ''}><span class="track"></span>
                         <span class="label">Participants can open their mission ${info('When off, opening the mission shows the message below. Admins can always open theirs.', { align: 'left' })}</span></label>
+                    <label class="switch"><input type="checkbox" name="showFacts" ${settings.showFacts ? 'checked' : ''}><span class="track"></span>
+                        <span class="label">Show known facts in the dossier ${info('The "Teadaolevad faktid" list from each participant\'s facts. Off: the facts stay saved but the reveal page neither shows nor receives them.', { align: 'left' })}</span></label>
                     <div class="field">
                         <label for="revealClosedMessage">Message while closed</label>
                         <textarea id="revealClosedMessage" name="revealClosedMessage" rows="2" maxlength="500">${settings.revealClosedMessage}</textarea>
@@ -50,8 +52,70 @@ export async function render(view) {
                 </div>
                 <div id="importResult"></div>
             </div>
+        </section>
+        <section class="card" id="mazeCard">
+            <div class="card-head"><h2>Maze game ${info('The maze bonus mission at /labyrint: move the maze to push the bauble to the door. Every game is recorded, finished or not; the scoreboard ranks fewest moves. No clock.', { align: 'left' })}</h2>
+                <a class="btn btn-sm btn-ghost" href="/labyrint" target="_blank" rel="noopener">Open<i class="bi bi-box-arrow-up-right"></i></a></div>
+            <div class="card-body stack" id="mazeBody"><p class="muted">Loading…</p></div>
         </section>`);
+    const loadMaze = async () => {
+        const body = $('#mazeBody', view);
+        if (!body) return;
+        try {
+            const maze = await api('/maze');
+            const leader = maze.board.rows[0];
+            mount(body, html`
+                <dl class="kv">
+                    <dt>Players</dt><dd>${maze.players}</dd>
+                    <dt>Games played</dt><dd>${maze.games}</dd>
+                    <dt>Finished</dt><dd>${maze.finished}</dd>
+                    <dt>Unfinished</dt><dd>${maze.unfinished}</dd>
+                    <dt>Leader</dt><dd>${leader ? `${leader.name} (${leader.totalMoves} moves)` : html`<span class="muted">none yet</span>`}</dd>
+                </dl>
+                ${maze.board.rows.length || maze.board.unfinished.length ? html`
+                    <div class="table-wrap"><table class="table">
+                        <thead><tr><th class="num">#</th><th>Agent</th><th class="num">Best moves</th><th class="num">Time ${info('Time of the best game, from the first move to the door. Breaks ties between equal moves.')}</th><th>Stars</th><th class="num">Games</th><th class="num">Finished</th></tr></thead>
+                        <tbody>
+                            ${maze.board.rows.map(row => html`<tr>
+                                <td class="num">${row.rank}</td>
+                                <td class="nowrap">${row.name}${row.first ? html` <span class="badge badge-accent">first</span>` : ''}${row.cheats ? html` <span class="badge badge-warn" title="Finished ${plural(row.cheats, 'game')} with the hidden cheat code (up up down down left right left right = 67 moves)">cheat code</span>` : ''}</td>
+                                <td class="num">${row.totalMoves}</td>
+                                <td class="num">${fmtDuration(row.durationMs)}</td>
+                                <td class="nowrap">${'★'.repeat(row.stars)}${'☆'.repeat(Math.max(0, 3 * maze.board.levelCount - row.stars))}</td>
+                                <td class="num">${row.games}</td>
+                                <td class="num">${row.finished}</td>
+                            </tr>`)}
+                            ${maze.board.unfinished.map(player => html`<tr>
+                                <td class="num muted">–</td>
+                                <td class="nowrap">${player.name}</td>
+                                <td class="num muted" title="Moves in their latest unfinished game">${player.latestMoves ?? 0} so far</td>
+                                <td class="num muted">–</td>
+                                <td class="muted">not finished</td>
+                                <td class="num">${player.games}</td>
+                                <td class="num">0</td>
+                            </tr>`)}
+                        </tbody>
+                    </table></div>` : ''}
+                ${maze.recent.length ? html`
+                    <h3 class="section-title">Recent games</h3>
+                    <div class="table-wrap"><table class="table">
+                        <thead><tr><th>Last move</th><th>Who</th><th>Status</th><th class="num">Moves</th><th class="num">Incl. undone</th><th class="num">Time</th></tr></thead>
+                        <tbody>${maze.recent.map(game => html`<tr>
+                            <td class="nowrap" title="Started ${fmtDateTime(game.startedAt)}">${relTime(game.updatedAt)}</td>
+                            <td class="nowrap">${game.name}</td>
+                            <td class="nowrap">${game.status === 'finished' ? html`<span class="badge badge-good">Finished</span>` : html`<span class="badge">Unfinished</span>`}${game.cheat ? html` <span class="badge badge-warn">cheat code</span>` : ''}</td>
+                            <td class="num">${game.moves}</td>
+                            <td class="num">${game.actions}</td>
+                            <td class="num">${game.durationMs !== null ? fmtDuration(game.durationMs) : html`<span class="muted">–</span>`}</td>
+                        </tr>`)}</tbody>
+                    </table></div>` : ''}
+                <div><button type="button" class="btn btn-danger" id="mazeReset" ${maze.games ? '' : 'disabled'}><i class="bi bi-trash"></i>Reset scoreboard</button></div>`);
+        } catch (err) {
+            mount(body, html`<div class="callout callout-danger"><i class="bi bi-exclamation-octagon"></i>${err.message}</div>`);
+        }
+    };
     draw();
+    loadMaze();
 
     const setFormDirty = value => {
         setDirty(value);
@@ -60,7 +124,24 @@ export async function render(view) {
     };
     on(view, 'input', '#settingsForm', () => setFormDirty(true));
     on(view, 'change', '#settingsForm', () => setFormDirty(true));
-    on(view, 'click', '#resetSettings', () => { draw(); setDirty(false); });
+    on(view, 'click', '#resetSettings', () => { draw(); loadMaze(); setDirty(false); });
+    on(view, 'click', '#mazeReset', async () => {
+        const ok = await confirmDialog({
+            title: 'Reset the maze scoreboard',
+            message: "Deletes every recorded maze game, finished or not, e.g. after testing. This cannot be undone.",
+            confirmLabel: 'Reset',
+            danger: true,
+            typeToConfirm: 'RESET',
+        });
+        if (!ok) return;
+        try {
+            const { removed } = await api('/maze', { method: 'DELETE' });
+            toast(`Scoreboard reset (${plural(removed, 'game')} removed)`);
+            loadMaze();
+        } catch (err) {
+            toast(err.message, 'error');
+        }
+    });
 
     // Import: choosing a file runs a dry run and shows what would change; the button applies it.
     const importFile = () => $('#importFile', view).files?.[0] ?? null;
@@ -108,6 +189,7 @@ export async function render(view) {
                 method: 'PUT',
                 body: {
                     revealOpen: data.get('revealOpen') === 'on',
+                    showFacts: data.get('showFacts') === 'on',
                     revealClosedMessage: String(data.get('revealClosedMessage')),
                     exchangeDate: String(data.get('exchangeDate')),
                     giftBudget: String(data.get('giftBudget')),
@@ -118,6 +200,7 @@ export async function render(view) {
             });
             setDirty(false);
             draw();
+            loadMaze();
             toast('Settings saved');
         } catch (err) {
             toast(err.message, 'error');
@@ -153,4 +236,11 @@ function importErrors(err) {
     return html`<div class="callout callout-danger"><i class="bi bi-exclamation-octagon"></i>
         <span>The file was not imported. ${problems.length > 1 ? 'Problems:' : ''}
             <ul style="margin:4px 0 0;padding-left:16px">${problems.map(p => html`<li>${p}</li>`)}</ul></span></div>`;
+}
+
+/** 83000 -> "1:23", 3723000 -> "1:02:03". */
+function fmtDuration(ms) {
+    const total = Math.max(0, Math.round((ms ?? 0) / 1000));
+    const h = Math.floor(total / 3600), m = Math.floor(total / 60) % 60, sec = String(total % 60).padStart(2, '0');
+    return h ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
 }

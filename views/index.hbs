@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="/css/auth.css">
   <link rel="stylesheet" href="/css/dossier.css">
+  <link rel="stylesheet" href="/css/maze.css">
   <link href="/vendor/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
   <link rel="stylesheet" type="text/css" href="/vendor/toastify/toastify.css">
 </head>
@@ -17,11 +18,25 @@
 <body data-logged-in="{{#if loggedIn}}true{{else}}false{{/if}}" data-santa-clips="{{santaClips}}">
   <canvas id="snow"></canvas>
   <div class="bg">
-    {{> hoverIcons}}
-    <main role="main" class="centerer text-center">
-      {{#if isAdmin}}
+    {{#> hoverIcons}}
+      {{!-- Shown once signed in (index.js). --}}
+      <form method="post" action="/auth/logout" id="logoutContainer" class="hidden">
+        <button type="submit" aria-label="Logi välja" title="Logi välja"><i class="bi bi-box-arrow-right"></i></button>
+      </form>
+    {{/hoverIcons}}
+    {{#if isAdmin}}
+    {{!-- Top-left corner, admins only: the panel link (the page icons are centred at the top). --}}
+    <div class="corner-left">
       {{> adminheader}}
-      {{/if}}
+    </div>
+    {{/if}}
+    {{!-- Top-right corner: the sound switch (audio.js shows it once the dossier opens). --}}
+    <div class="corner-controls">
+      <button type="button" class="sound-toggle hidden" id="soundToggle" aria-label="Lülita heli välja" title="Heli">
+        <i class="bi bi-volume-up-fill"></i>
+      </button>
+    </div>
+    <main role="main" class="centerer text-center">
 
       {{#if encryptionWithCode}}
       <div class="briefing" id="inputContainer">
@@ -74,7 +89,7 @@
           <div class="briefing-bubble">Psst, vaata, et heli töötaks!</div>
         </div>
         <div class="briefing-small">
-          <a href="#" id="showCodeLink">Näita koodi</a>
+          <a href="#" id="showCodeLink">Näita koodi</a> · <a href="/labyrint">Labürint</a>
         </div>
         {{/if}}
       </div>
@@ -158,6 +173,9 @@
                   <div class="label">Teadaolevad faktid:</div>
                   <ul id="dossierFacts"></ul>
                 </div>
+                <div class="dossier-section dossier-bonus-row">
+                  <a class="dossier-bonus" href="/labyrint"><i class="bi bi-signpost-split"></i> Lisaülesanne: agentuuri labürint</a>
+                </div>
               </div>
             </div>
             <div class="dossier-footer">
@@ -171,28 +189,21 @@
         </div>
       </div>
 
+      {{> maze}}
+
       <audio id="briefingPlayer" preload="auto" playsinline></audio>
       <audio hidden id="player" playsinline loop>
         <source src="/audio/music.mp3" type="audio/mpeg">
       </audio>
 
-      <div id="logoutContainer" class="logoutContainer hidden">
-        <form method="post" action="/auth/logout">
-        <button type="submit" class="logout-button" aria-label="Logi välja">
-          <svg xmlns="http://www.w3.org/2000/svg" height="2em"
-            viewBox="0 0 512 512"><!--! Font Awesome Free 6.4.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license (Commercial License) Copyright 2023 Fonticons, Inc. -->
-            <path
-              d="M377.9 105.9L500.7 228.7c7.2 7.2 11.3 17.1 11.3 27.3s-4.1 20.1-11.3 27.3L377.9 406.1c-6.4 6.4-15 9.9-24 9.9c-18.7 0-33.9-15.2-33.9-33.9l0-62.1-128 0c-17.7 0-32-14.3-32-32l0-64c0-17.7 14.3-32 32-32l128 0 0-62.1c0-18.7 15.2-33.9 33.9-33.9c9 0 17.6 3.6 24 9.9zM160 96L96 96c-17.7 0-32 14.3-32 32l0 256c0 17.7 14.3 32 32 32l64 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-64 0c-53 0-96-43-96-96L0 128C0 75 43 32 96 32l64 0c17.7 0 32 14.3 32 32s-14.3 32-32 32z" />
-          </svg>
-        </button>
-        </form>
-      </div>
     </main>
   </div>
 
   <script src="/js/track.js"></script>
   <script src="/js/audio.js"></script>
   <script src="/js/snow.js"></script>
+  <script src="/js/maze-engine.js"></script>
+  <script src="/js/maze.js"></script>
   <script src="/js/index.js"></script>
   <script src="/vendor/toastify/toastify.js"></script>
 </body>

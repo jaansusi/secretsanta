@@ -4,21 +4,23 @@ import { pageHead, meter } from '../lib/ui.js';
 import { dataTable } from '../lib/table.js';
 import { navigate, setQuery } from '../lib/router.js';
 
-const PARTS = [
+const ALL_PARTS = [
     { key: 'codename', label: 'Codename', has: p => !!p.dossier.codename },
     { key: 'brief', label: 'Mission brief', has: p => p.dossier.hasBrief },
     { key: 'photo', label: 'Photo', has: p => p.dossier.hasPhoto },
     { key: 'facts', label: 'Facts', has: p => p.factsCount > 0 },
     { key: 'clip', label: "Santa's clip", has: p => p.nameClips > 0 || p.dossier.hasAudio },
 ];
-const score = p => PARTS.filter(part => part.has(p)).length;
 const yes = (value, label) => value
     ? html`<i class="bi bi-check-circle-fill status-pass" role="img" aria-label="${label} present"></i>`
     : html`<i class="bi bi-circle status-todo" role="img" aria-label="${label} missing"></i>`;
 
 export async function render(view, { query }) {
-    const participants = await api('/participants');
+    const [participants, settings] = await Promise.all([api('/participants'), api('/settings')]);
     const total = participants.length;
+    // Facts are not shown in the dossier while the setting is off, so they do not count towards complete.
+    const PARTS = ALL_PARTS.filter(part => part.key !== 'facts' || settings.showFacts);
+    const score = p => PARTS.filter(part => part.has(p)).length;
 
     mount(view, html`
         ${pageHead({
@@ -61,6 +63,6 @@ export async function render(view, { query }) {
                 key: 'progress', label: 'Complete', sortValue: score,
                 render: p => html`<div style="min-width:90px"><span class="num">${score(p)} / ${PARTS.length}</span>${meter(score(p), PARTS.length)}</div>`,
             },
-        ],
+        ].filter(column => column.key !== 'facts' || settings.showFacts),
     });
 }

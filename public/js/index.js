@@ -117,6 +117,7 @@ function acceptMission() {
         document.getElementById('logoutContainer').classList.remove('hidden');
 
         renderDossier(res);
+        showSoundToggle();
 
         if (!snowActive) {
             snowActive = true;
@@ -272,6 +273,66 @@ window.addEventListener("load", (event) => {
         const briefing = document.getElementById('briefingPlayer');
         if (briefing) briefing.src = hasClipLibrary() ? clipUrl('intro', clipRotation().intro) : briefingSource();
     }
+});
+
+// ---- The maze, shown in place of the dossier ---------------------------------------------------
+// The maze is a hidden section of this page (views/partials/maze.hbs, run by maze.js), so opening it
+// keeps the music playing and the page's other buttons where they are. Its "Tagasi toimiku juurde"
+// links and the phone's back gesture bring back whatever was showing before, at the same scroll position.
+const MAZE_HIDES = ['inputContainer', 'authContainer', 'webViewWarning', 'dossier'];
+let mazeReturn = null;
+
+function mazeOpen() {
+    return !document.getElementById('mazeView').classList.contains('hidden');
+}
+
+function openMaze({ opener = null, fromUrl = false } = {}) {
+    if (!window.MazeView || mazeOpen()) return;
+    const shown = MAZE_HIDES.map(id => document.getElementById(id)).filter(el => el && !el.classList.contains('hidden'));
+    mazeReturn = { shown, scrollY: window.scrollY, opener, pushed: !fromUrl };
+    shown.forEach(el => el.classList.add('hidden'));
+    document.getElementById('mazeView').classList.remove('hidden');
+    window.scrollTo(0, 0);
+    window.MazeView.show();
+    // A history entry, so the phone's back gesture closes the maze instead of leaving the site.
+    if (fromUrl) history.replaceState({ maze: true }, '', location.pathname + location.search + '#labyrint');
+    else history.pushState({ maze: true }, '', location.pathname + location.search + '#labyrint');
+}
+
+function closeMaze({ fromHistory = false } = {}) {
+    if (!mazeOpen()) return;
+    window.MazeView.hide();
+    document.getElementById('mazeView').classList.add('hidden');
+    const back = mazeReturn || { shown: [], scrollY: 0, opener: null, pushed: false };
+    mazeReturn = null;
+    back.shown.forEach(el => el.classList.remove('hidden'));
+    window.scrollTo(0, back.scrollY);
+    if (back.opener) back.opener.focus({ preventScroll: true });
+    if (fromHistory) return;
+    // Opened by a click: step back over our history entry. Opened from a /labyrint link: just drop the hash.
+    if (back.pushed && history.state && history.state.maze) history.back();
+    else history.replaceState(null, '', location.pathname + location.search);
+}
+
+window.addEventListener('popstate', () => closeMaze({ fromHistory: true }));
+document.addEventListener('click', event => {
+    if (!event.target.closest) return;
+    // The maze's back links, and the corner home icon while the maze is open (a reload would stop the music).
+    const back = event.target.closest('#mazeView a.maze-back')
+        || (mazeOpen() && event.target.closest('#navigationIconsContainer a[href="/"]'));
+    if (back) {
+        event.preventDefault();
+        closeMaze();
+        return;
+    }
+    const link = event.target.closest('a[href="/labyrint"]');
+    if (!link || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    openMaze({ opener: link });
+});
+// /labyrint redirects here with #labyrint (old links, bookmarks): open the maze for signed-in agents.
+window.addEventListener('load', () => {
+    if (location.hash === '#labyrint' && isLoggedIn) openMaze({ fromUrl: true });
 });
 
 function fallbackCopyTextToClipboard(text) {

@@ -12,6 +12,8 @@ export const EVENT_TYPES = {
     briefing_complete: 'Heard Santa to the end',
     briefing_replay: 'Replayed Santa',
     autoplay_blocked: 'Audio autoplay was blocked',
+    maze_start: 'Started a maze game',
+    maze_complete: 'Finished a maze game',
 } as const;
 
 export type EventType = keyof typeof EVENT_TYPES;

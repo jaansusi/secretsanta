@@ -1,0 +1,15 @@
+import { Module } from '@nestjs/common';
+import { SequelizeModule } from '@nestjs/sequelize';
+import { User } from 'src/user/entities/user.entity';
+import { AnalyticsModule } from 'src/analytics/analytics.module';
+import { MazeGame } from './entities/maze-game.entity';
+import { MazeController } from './maze.controller';
+import { MazeService } from './maze.service';
+
+@Module({
+    imports: [SequelizeModule.forFeature([MazeGame, User]), AnalyticsModule],
+    controllers: [MazeController],
+    providers: [MazeService],
+    exports: [MazeService],
+})
+export class MazeModule { }

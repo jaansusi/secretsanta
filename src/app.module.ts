@@ -12,6 +12,7 @@ import { EncryptionModule } from './encryption/encryption.module';
 import { DossierModule } from './dossier/dossier.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { SettingsModule } from './settings/settings.module';
+import { MazeModule } from './maze/maze.module';
 import { SessionModule } from './auth/session.module';
 import { DEFAULT_THROTTLE } from './security/throttle';
 
@@ -30,6 +31,7 @@ import { DEFAULT_THROTTLE } from './security/throttle';
     DossierModule,
     AnalyticsModule,
     SettingsModule,
+    MazeModule,
     SequelizeModule.forRootAsync(dataBaseConfig)
   ],
   controllers: [HomeController],

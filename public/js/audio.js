@@ -70,6 +70,59 @@ function briefingSource() {
     return '/dossier/audio' + (code ? '?code=' + encodeURIComponent(code) : '');
 }
 
+// ---- Sound switch (top-right corner) ----------------------------------------------------------
+// One switch for everything that plays here (music and Santa's briefing). Shown once the dossier opens;
+// the choice is remembered in this browser. Turning sound on also starts the music if it never got going
+// (a phone can block it).
+const SOUND_MUTED_KEY = 'santaSoundMuted';
+let soundMuted = (() => { try { return localStorage.getItem(SOUND_MUTED_KEY) === '1'; } catch (e) { return false; } })();
+let soundAvailable = false;
+
+function audioElements() {
+    return ['player', 'briefingPlayer'].map(id => document.getElementById(id)).filter(Boolean);
+}
+
+function soundAudible() {
+    return !soundMuted && audioElements().some(audio => !audio.paused);
+}
+
+function renderSoundToggle() {
+    const button = document.getElementById('soundToggle');
+    if (!button) return;
+    const on = soundAudible();
+    button.querySelector('i').className = 'bi ' + (on ? 'bi-volume-up-fill' : 'bi-volume-mute-fill');
+    button.setAttribute('aria-label', on ? 'Lülita heli välja' : 'Lülita heli sisse');
+}
+
+/** Called when the dossier opens (index.js): from then on there is something to switch. */
+function showSoundToggle() {
+    soundAvailable = true;
+    const button = document.getElementById('soundToggle');
+    if (button) button.classList.remove('hidden');
+    renderSoundToggle();
+}
+
+function toggleSound() {
+    if (soundAudible()) {
+        soundMuted = true;
+    } else {
+        soundMuted = false;
+        if (soundAvailable && audioElements().every(audio => audio.paused)) startMusic();
+    }
+    try { localStorage.setItem(SOUND_MUTED_KEY, soundMuted ? '1' : '0'); } catch (e) { /* not remembered */ }
+    audioElements().forEach(audio => { audio.muted = soundMuted; });
+    renderSoundToggle();
+}
+
+window.addEventListener('load', () => {
+    audioElements().forEach(audio => {
+        audio.muted = soundMuted;
+        ['play', 'pause', 'ended', 'volumechange'].forEach(type => audio.addEventListener(type, renderSoundToggle));
+    });
+    const toggle = document.getElementById('soundToggle');
+    if (toggle) toggle.addEventListener('click', toggleSound);
+});
+
 window.addEventListener('load', () => {
     const briefing = document.getElementById('briefingPlayer');
     if (!briefing) return;

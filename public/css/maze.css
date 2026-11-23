@@ -1,0 +1,446 @@
+/* The maze minigame, shown in place of the dossier on the main page (views/partials/maze.hbs).
+   main.css sets body to 1.5em and centres <main>; this section sizes itself in rem and aligns left. */
+.maze-page {
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 32rem;
+    margin: 0 auto;
+    /* The page itself keeps clear of the corner icons (main.css .centerer). */
+    padding: 1.75rem 1rem 3rem;
+    font-family: 'Special Elite', 'Courier New', Courier, monospace;
+    font-size: 1rem;
+    line-height: 1.4;
+    text-align: left;
+    color: #2b2420;
+}
+
+.maze-back {
+    display: inline-block;
+    margin-bottom: 0.8rem;
+    color: #fff;
+    text-decoration: none;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.maze-back:hover {
+    text-decoration: underline;
+}
+
+/* The same link again under the game, so nobody has to scroll back up. */
+.maze-back-bottom {
+    margin: 1rem 0 0;
+}
+
+.paper {
+    margin-top: 1rem;
+    padding: 1rem 1.1rem;
+    background: #f3ecd9;
+    border: 1px solid #cdbf9a;
+    border-radius: 0.3rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.paper h2 {
+    margin: 0 0 0.6rem;
+    font-size: 1.1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.maze-head {
+    margin-top: 0;
+}
+
+.maze-kicker {
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #8a1c14;
+}
+
+.maze-head h1 {
+    margin: 0.2rem 0 0;
+    font-size: 1.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.muted-note {
+    margin: 0.6rem 0 0;
+    font-size: 0.8rem;
+    color: #6b6052;
+    text-align: center;
+}
+
+/* ---------- Level tabs ---------- */
+.levels {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.level-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.4rem 0.2rem;
+    font-family: inherit;
+    color: #2b2420;
+    background: #efe7d2;
+    border: 1px solid #cdbf9a;
+    border-radius: 0.3rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+}
+
+.level-tab.active {
+    background: #fff;
+    border-color: #8a1c14;
+    box-shadow: 0 0 0 2px #8a1c14, 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.level-no {
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.stars {
+    display: inline-flex;
+    gap: 0.1rem;
+    font-size: 0.75rem;
+    color: #c8952c;
+}
+
+.stars .bi-star {
+    color: #b9ad90;
+}
+
+/* ---------- Play area ---------- */
+.maze-status {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.board-wrap {
+    position: relative;
+}
+
+.board {
+    display: block;
+    width: 100%;
+    height: auto;
+    touch-action: none;            /* swipes move the maze, not the page */
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.board .world {
+    fill: #fbf7ec;
+    stroke: #b9ad90;
+    stroke-width: 1;
+}
+
+.board .grid line {
+    stroke: #c9bc9b;
+    stroke-width: 1;
+    stroke-dasharray: 4 4;
+}
+
+.board .maze,
+.board .ball {
+    transition: transform 160ms ease-out;
+}
+
+.board.instant .maze,
+.board.instant .ball {
+    transition: none;
+}
+
+.board .maze-floor {
+    fill: rgba(138, 28, 20, 0.06);
+}
+
+.board .wall {
+    stroke: #2b2420;
+    stroke-width: 5;
+    stroke-linecap: round;
+}
+
+.board .door-leaf {
+    fill: #8a1c14;
+    stroke: #5e0d0c;
+    stroke-width: 1.5;
+}
+
+.board .door-knob {
+    fill: #f0d78a;
+}
+
+.board .ball-body {
+    fill: #d8322a;
+    stroke: #8a1c14;
+    stroke-width: 1.5;
+}
+
+.board .ball-cap {
+    fill: #c8952c;
+    stroke: #7a5a14;
+    stroke-width: 1;
+}
+
+.board .ball-shine {
+    fill: rgba(255, 255, 255, 0.65);
+}
+
+.board.bump {
+    animation: bump 260ms ease-in-out;
+}
+
+@keyframes bump {
+    20% { transform: translateX(-4px); }
+    40% { transform: translateX(4px); }
+    60% { transform: translateX(-2px); }
+    80% { transform: translateX(2px); }
+}
+
+.maze-hint {
+    min-height: 1.3rem;
+    margin-top: 0.4rem;
+    text-align: center;
+    font-size: 0.85rem;
+    color: #6b6052;
+}
+
+/* ---------- Win card over the board ---------- */
+.win {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(243, 236, 217, 0.82);
+}
+
+.win-card {
+    width: min(18rem, 90%);
+    padding: 1rem;
+    text-align: center;
+    background: #fff;
+    border: 2px solid #2b2420;
+    border-radius: 0.4rem;
+    box-shadow: 4px 4px 0 #2b2420;
+    animation: winIn 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes winIn {
+    from { transform: scale(0.85) rotate(-2deg); opacity: 0; }
+}
+
+.win-title {
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #1f6b32;
+}
+
+.win-stars .stars {
+    font-size: 1.6rem;
+    margin: 0.3rem 0;
+}
+
+.win-best {
+    margin-top: 0.3rem;
+    color: #8a1c14;
+}
+
+.win-best:empty {
+    display: none;
+}
+
+.win-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.6rem;
+    margin-top: 0.9rem;
+}
+
+.button.button-small {
+    padding: 0.35em 0.8em;
+    font-size: 0.8rem;
+    box-shadow: 3px 3px 0 #2b2420;
+}
+
+/* ---------- Controls: undo and restart (moves are swipes on the board) ---------- */
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.6rem;
+    margin-top: 0.4rem;
+}
+
+.tool {
+    font-family: inherit;
+    font-size: 0.85rem;
+    padding: 0.45rem 0.7rem;
+    color: #2b2420;
+    background: #efe7d2;
+    border: 1px solid #7a6a4d;
+    border-radius: 0.4rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.tool:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.tool:focus-visible,
+.level-tab:focus-visible {
+    outline: 3px solid #f0d78a;
+    outline-offset: 2px;
+}
+
+/* ---------- Scoreboard: collapsible, inside the title card ---------- */
+.scoreboard {
+    margin-top: 0.8rem;
+    border-top: 1px dashed #cdbf9a;
+    padding-top: 0.6rem;
+}
+
+.scoreboard summary {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+.scoreboard summary::-webkit-details-marker {
+    display: none;
+}
+
+.scoreboard summary:focus-visible {
+    outline: 3px solid #f0d78a;
+    outline-offset: 2px;
+}
+
+.scoreboard-title {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.scoreboard-peek {
+    flex: 1;
+    min-width: 0;
+    text-align: right;
+    font-size: 0.85rem;
+    color: #6b6052;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.scoreboard-chevron {
+    transition: transform 160ms ease;
+}
+
+.scoreboard[open] .scoreboard-chevron {
+    transform: rotate(180deg);
+}
+
+.scoreboard[open] summary {
+    margin-bottom: 0.5rem;
+}
+
+/* ---------- Leaderboard ---------- */
+.board-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.board-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.45rem 0.3rem;
+    border-bottom: 1px dashed #cdbf9a;
+}
+
+.board-list li.me {
+    background: rgba(240, 215, 138, 0.45);
+}
+
+.rank {
+    flex: none;
+    width: 1.9rem;
+    height: 1.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-weight: 700;
+    background: #e3d7b8;
+}
+
+.rank-1 { background: #f0c330; }
+.rank-2 { background: #c9ced3; }
+.rank-3 { background: #d9945a; }
+
+.who {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.badge-first {
+    display: inline-block;
+    margin-left: 0.4rem;
+    padding: 0 0.35rem;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #fff;
+    background: #8a1c14;
+    border-radius: 0.2rem;
+    transform: rotate(-2deg);
+}
+
+.score {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-size: 0.85rem;
+    color: #4d4337;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .board .maze,
+    .board .ball,
+    .board.bump,
+    .win-card {
+        transition: none;
+        animation: none;
+    }
+}
+
+/* Agents still on their way to the door (names only). */
+.unfinished h3 {
+    margin: 1rem 0 0.3rem;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6b6052;
+}

@@ -73,6 +73,9 @@ body {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
+    /* Keep content clear of the fixed icon rows in the top corners. */
+    box-sizing: border-box;
+    padding-top: 56px;
 }
 
 .centerer>div {
@@ -129,46 +132,6 @@ canvas {
     pointer-events:none;
 }
 
-#logoutContainer {
-    padding: 10px;
-    background-color: rgb(157, 0, 0);
-    border-radius: 10px;
-    border: rgb(94, 13, 12) 2px solid;
-    box-shadow: inset 1px 1px 0px rgba(255, 255, 255, 0.25),
-        /* highlight */
-        inset 0 0 6px #a23227,
-        /* inner glow */
-        inset 0 80px 80px -40px #ac3223,
-        /* gradient */
-        1px 1px 3px rgba(0, 0, 0, 0.75);
-}
-
-#logoutContainer:hover {
-    background: #a61715;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75), 0 0 40px #FFF;
-    box-shadow: inset 1px 1px 0px rgba(255, 255, 255, 0.25),
-        /* highlight */
-        inset 0 0 6px #da3b2c,
-        /* inner glow */
-        inset 0 80px 80px -40px #dd4330,
-        /* gradient */
-        1px 1px 3px rgba(0, 0, 0, 0.75);
-}
-
-#logoutContainer svg {
-    fill: white;
-}
-
-#logoutContainer .logout-button {
-    background: none;
-    border: 0;
-    padding: 0;
-    margin: 0;
-    color: inherit;
-    cursor: pointer;
-    display: block;
-}
-
 #letterIframe {
     width: 80%;
     height: 80vh;
@@ -176,10 +139,17 @@ canvas {
     border: none;
 }
 
+/* Home, letter and (signed in) logout icons, centred at the top so they are easy to spot. */
 #navigationIconsContainer {
     position: fixed;
     top: 0;
-    left: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;                 /* above the page content */
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    white-space: nowrap;
 }
 #navigationIconsContainer a {
     color: white;
@@ -187,12 +157,58 @@ canvas {
     text-decoration: none;
 }
 
+/* The logout button sits with the icons and looks like them. */
+#navigationIconsContainer form {
+    display: inline;
+}
+
+#navigationIconsContainer form button {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: white;
+    font-size: 2em;
+    line-height: inherit;
+    cursor: pointer;
+}
+
 /* Shown to admins on the public page. */
-.admin-link {
+/* Top corners around the centred icons: the admin link on the left (admins only), the sound switch on the right. */
+.corner-left {
     position: fixed;
-    top: 10px;
-    right: 12px;
+    top: 18px;
+    left: 10px;
     z-index: 10;
+}
+
+/* On phones the centred icons leave room for the admin link's icon only. */
+@media (max-width: 520px) {
+    .admin-link-text {
+        display: none;
+    }
+}
+
+.corner-controls {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sound-toggle {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: white;
+    font-size: 2em;
+    line-height: inherit;
+    cursor: pointer;
+}
+
+.admin-link {
     padding: 4px 10px;
     border-radius: 6px;
     background: rgba(0, 0, 0, 0.45);

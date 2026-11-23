@@ -8,6 +8,7 @@ import { UserService } from 'src/user/user.service';
 import { EncryptionService, EncryptionStrategy } from 'src/encryption/encryption.service';
 import { SantaAudioService } from 'src/santa-audio/santa-audio.service';
 import { AgencyFactsService } from './agency-facts.service';
+import { SettingsService } from 'src/settings/settings.service';
 
 @Injectable()
 export class DossierService {
@@ -32,6 +33,7 @@ export class DossierService {
         private readonly encryptionService: EncryptionService,
         private readonly santaAudioService: SantaAudioService,
         private readonly agencyFactsService: AgencyFactsService,
+        private readonly settingsService: SettingsService,
         private readonly logger: Logger,
     ) { }
 
@@ -121,7 +123,8 @@ export class DossierService {
     /** Builds the dossier shown to the Santa on the reveal page. */
     public async getRevealDossier(recipient: User | null): Promise<RevealDossierDto> {
         const summary = recipient ? await this.getSummary(recipient.id) : null;
-        const facts = (recipient?.interestingFacts ?? '')
+        // "Teadaolevad faktid" are only sent when the showFacts setting is on (off for 2026).
+        const facts = !this.settingsService.get().showFacts ? [] : (recipient?.interestingFacts ?? '')
             .split(/\r?\n/)
             .map(line => line.trim())
             .filter(line => line.length > 0);
