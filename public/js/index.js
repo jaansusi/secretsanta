@@ -20,13 +20,6 @@ function showBriefingError(message) {
     errorBox.classList.remove('hidden');
 }
 
-function toggleCodeInput(event) {
-    event.preventDefault();
-    const group = document.getElementById('codeInputGroup');
-    const hidden = group.classList.toggle('hidden');
-    document.getElementById('showCodeLink').textContent = hidden ? 'Näita koodi' : 'Peida kood';
-}
-
 const CLIP_ROTATION_KEY = 'santaClipRotation';
 
 /** True when generated intro and outro clips exist (their URLs are rendered into the page). */
@@ -241,7 +234,6 @@ window.addEventListener("load", (event) => {
         if (element) element.addEventListener(eventName, handler);
     };
     bind('submit', 'click', acceptMission);
-    bind('showCodeLink', 'click', toggleCodeInput);
     bind('replayButton', 'click', () => playBriefing());
     bind('copyContainer', 'click', () => copyTextToClipboard(window.location.href));
     bind('googleAuthButton', 'click', () => { location.href = '/auth/google'; });

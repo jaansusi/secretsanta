@@ -13,7 +13,7 @@ export interface SiteSettings {
     revealOpen: boolean;
     /** Shown on the site instead of the mission while revealOpen is false. */
     revealClosedMessage: string;
-    /** Google Doc behind /kiri. Falls back to GOOGLE_DOC_LETTER_LINK. */
+    /** Google Doc behind /kiri for the group's participants. Empty: no letter, and the envelope icon is hidden. */
     letterUrl: string;
     /** The day gifts are exchanged (YYYY-MM-DD), used for the countdown on the dashboard. */
     exchangeDate: string;
@@ -83,13 +83,12 @@ export class SettingsService implements OnModuleInit {
     }
 
     public letterUrl(groupId: number): string {
-        return this.get(groupId).letterUrl || process.env.GOOGLE_DOC_LETTER_LINK || '';
+        return this.get(groupId).letterUrl;
     }
 
     /** Every https origin some group's letter lives on: the CSP frame-src allows exactly these. */
     public letterOrigins(): string[] {
         const urls = [...this.cache.values()].map(settings => settings.letterUrl);
-        urls.push(process.env.GOOGLE_DOC_LETTER_LINK || '');
         return [...new Set(urls.map(httpsOrigin).filter((origin): origin is string => !!origin))];
     }
 

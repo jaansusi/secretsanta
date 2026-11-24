@@ -79,7 +79,7 @@ export class InsightsController {
 
     @Get('settings')
     settings(@CurrentGroupId() groupId: number) {
-        return { ...this.settingsService.get(groupId), letterUrlFallback: process.env.GOOGLE_DOC_LETTER_LINK || '' };
+        return this.settingsService.get(groupId);
     }
 
     @Put('settings')
@@ -98,7 +98,7 @@ export class InsightsController {
                 details: { changed },
             });
         }
-        return { ...settings, letterUrlFallback: process.env.GOOGLE_DOC_LETTER_LINK || '' };
+        return settings;
     }
 }
 

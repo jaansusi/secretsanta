@@ -41,8 +41,8 @@ export async function render(view) {
             <section class="card">
                 <div class="card-head"><h2>Santa's letter</h2><a class="btn btn-sm btn-ghost" href="/kiri" target="_blank" rel="noopener">Open<i class="bi bi-box-arrow-up-right"></i></a></div>
                 <div class="card-body field">
-                    <label for="letterUrl">Google Doc URL ${info(settings.letterUrlFallback ? 'Leave empty to use GOOGLE_DOC_LETTER_LINK from the server environment' : "Use the document's embeddable preview link", { align: 'left' })}</label>
-                    <input type="url" id="letterUrl" name="letterUrl" maxlength="1000" placeholder="${settings.letterUrlFallback || 'https://docs.google.com/document/d/…/preview'}" value="${settings.letterUrl}">
+                    <label for="letterUrl">Google Doc URL ${info("Use the document's embeddable preview link. Leave empty to hide the letter (and its envelope icon) from this group", { align: 'left' })}</label>
+                    <input type="url" id="letterUrl" name="letterUrl" maxlength="1000" placeholder="https://docs.google.com/document/d/…/preview" value="${settings.letterUrl}">
                 </div>
             </section>
             <section class="card">

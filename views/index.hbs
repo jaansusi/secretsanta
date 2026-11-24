@@ -44,9 +44,6 @@
         <h2 class="briefing-title briefing-headline">
           <i class="bi bi-hourglass-split"></i> Vara veel, jõuluvana alles mõtleb.
         </h2>
-        <div class="briefing-small">
-          <a href="/labyrint">Labürint</a>
-        </div>
         {{else}}
         {{#if loggedIn}}
         <div class="briefing-greeting">Tere, {{userName}}!</div>
@@ -68,38 +65,6 @@
             {{#if loggedIn}}Ava infopakk{{else}}Sisene{{/if}}
           </button>
         </div>
-        {{#if loggedIn}}
-        <div class="briefing-notice">
-          <svg class="briefing-elf" viewBox="0 0 64 64" aria-hidden="true">
-            <!-- ears -->
-            <path d="M17 38 L4 32 L17 46 Z" fill="#f5c9a0" stroke="#d9a070" stroke-width="1.5" stroke-linejoin="round"/>
-            <path d="M47 38 L60 32 L47 46 Z" fill="#f5c9a0" stroke="#d9a070" stroke-width="1.5" stroke-linejoin="round"/>
-            <!-- face -->
-            <circle cx="32" cy="40" r="17" fill="#f5c9a0" stroke="#d9a070" stroke-width="1.5"/>
-            <!-- cheeks -->
-            <circle cx="21" cy="46" r="3" fill="#f4a3a3" opacity="0.7"/>
-            <circle cx="43" cy="46" r="3" fill="#f4a3a3" opacity="0.7"/>
-            <!-- eyes: one open, one winking -->
-            <circle cx="25" cy="40" r="2.2" fill="#2b2420"/>
-            <path d="M37 40 Q40 37 43 40" fill="none" stroke="#2b2420" stroke-width="2" stroke-linecap="round"/>
-            <!-- nose -->
-            <path d="M30 45 Q32 48 34 45" fill="none" stroke="#d9a070" stroke-width="1.5" stroke-linecap="round"/>
-            <!-- mouth -->
-            <path d="M28 51 Q32 53 36 51" fill="none" stroke="#2b2420" stroke-width="2" stroke-linecap="round"/>
-            <!-- hat -->
-            <path d="M12 33 C12 14 28 4 50 9 C44 12 47 24 52 33 Z" fill="#2f8f46" stroke="#1f6b32" stroke-width="1.5" stroke-linejoin="round"/>
-            <rect x="10" y="30" width="44" height="6" rx="3" fill="#fff" stroke="#d9a070" stroke-width="1.2"/>
-            <circle cx="51" cy="9" r="4" fill="#d8322a" stroke="#a61715" stroke-width="1.2"/>
-            <!-- shushing finger across the lips -->
-            <path d="M33 60 L33 50" stroke="#d9a070" stroke-width="6.5" stroke-linecap="round"/>
-            <path d="M33 60 L33 50" stroke="#f5c9a0" stroke-width="4.5" stroke-linecap="round"/>
-          </svg>
-          <div class="briefing-bubble">Psst, vaata, et heli töötaks!</div>
-        </div>
-        <div class="briefing-small">
-          <a href="#" id="showCodeLink">Näita koodi</a> · <a href="/labyrint">Labürint</a>
-        </div>
-        {{/if}}
         {{/if}}
       </div>
       {{/if}}

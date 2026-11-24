@@ -38,7 +38,7 @@ export class HomeController {
       const user = await this.userService.getByDecryptionCode(request.query.code);
       if (!user) {
         await this.analyticsService.track('link_invalid', request);
-        return response.render('index', { encryptionWithCode: true, inputType: 'text', error: 'Vigane kood!', year, santaClips });
+        return response.render('index', { encryptionWithCode: true, inputType: 'text', error: 'Vigane kood!', year, santaClips, hideHome: true });
       }
       await this.analyticsService.track('link_open', request, { userId: user.id });
       // Trade the code in the link for a session, then drop it from the address bar,
@@ -60,12 +60,13 @@ export class HomeController {
         isAdmin: await this.adminAccess.canManageGroup(request, user.groupId),
         userName: user.name,
         groupName: await this.switchableGroupName(request, user),
+        showLetter: !!this.settingsService.letterUrl(user.groupId),
         year,
         santaClips,
       });
     }
     await this.analyticsService.track('page_view', request);
-    return response.render('index', { encryptionWithCode: true, inputType: 'text', year, santaClips });
+    return response.render('index', { encryptionWithCode: true, inputType: 'text', year, santaClips, hideHome: true });
   }
 
   @Post('result')
@@ -104,9 +105,11 @@ export class HomeController {
   async letter(@Req() request: Request) {
     const user = await this.sessionService.getUser(request);
     await this.analyticsService.track('letter_view', request, { userId: user?.id ?? null });
-    // Each group has its own letter; visitors who are not signed in get the site-wide one (GOOGLE_DOC_LETTER_LINK).
+    // Each group has its own letter (or none); visitors who are not signed in have no group, so no letter.
+    const letterUrl = user ? this.settingsService.letterUrl(user.groupId) : '';
     return {
-      letterUrl: user ? this.settingsService.letterUrl(user.groupId) : process.env.GOOGLE_DOC_LETTER_LINK || '',
+      letterUrl,
+      showLetter: !!letterUrl,
       groupName: user ? await this.switchableGroupName(request, user) : null,
     };
   }
@@ -120,7 +123,9 @@ export class HomeController {
     }
     const current = this.sessionService.readUserId(request);
     const groups = await this.groupService.namesById(memberships.map(member => member.groupId));
+    const currentUser = memberships.find(member => member.id === current);
     return response.render('groups', {
+      showLetter: !!currentUser && !!this.settingsService.letterUrl(currentUser.groupId),
       choices: memberships.map(member => ({
         userId: member.id,
         groupName: groups.get(member.groupId) ?? '?',

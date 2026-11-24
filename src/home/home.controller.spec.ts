@@ -8,6 +8,7 @@ describe('HomeController', () => {
     const disabledGroups = new Set<number>();
     const settingsService = {
         get: () => ({ revealOpen: true, revealClosedMessage: 'closed' }),
+        letterUrl: jest.fn((groupId: number) => (groupId === 1 ? 'https://docs.google.com/document/d/own/preview' : '')),
         isGroupEnabled: (groupId: number) => !disabledGroups.has(groupId),
     };
     const sessionService = { start: jest.fn(), getUser: jest.fn(), readUserId: jest.fn(), googleIdentity: jest.fn((): string | null => null) };
@@ -48,6 +49,33 @@ describe('HomeController', () => {
         const [, locals] = res.render.mock.calls[0];
         expect(locals.loggedIn).toBeUndefined();
         expect(locals.prefill).toBeUndefined();
+    });
+
+    describe("Santa's letter", () => {
+        it("shows the envelope icon only when the participant's group has a letter", async () => {
+            sessionService.getUser.mockResolvedValue({ id: 3, groupId: 2, name: 'Mari', encryptionStrategy: 'code', decryptionCode: 'x' });
+            const none = response();
+            await controller.home(request(), none as any);
+            expect(none.render.mock.calls[0][1].showLetter).toBe(false);
+
+            sessionService.getUser.mockResolvedValue({ id: 4, groupId: 1, name: 'Jaan', encryptionStrategy: 'code', decryptionCode: 'y' });
+            const own = response();
+            await controller.home(request(), own as any);
+            expect(own.render.mock.calls[0][1].showLetter).toBe(true);
+        });
+
+        it('has no letter for visitors who are not signed in', async () => {
+            sessionService.getUser.mockResolvedValue(null);
+            const res = response();
+            await controller.home(request(), res as any);
+            expect(res.render.mock.calls[0][1].showLetter).toBeFalsy();
+            expect(await controller.letter(request())).toEqual(expect.objectContaining({ letterUrl: '', showLetter: false }));
+        });
+
+        it("never shows a group without a letter another group's", async () => {
+            sessionService.getUser.mockResolvedValue({ id: 3, groupId: 2, name: 'Mari' });
+            expect(await controller.letter(request())).toEqual(expect.objectContaining({ letterUrl: '', showLetter: false }));
+        });
     });
 
     it('rejects a non-string code in the reveal request', async () => {

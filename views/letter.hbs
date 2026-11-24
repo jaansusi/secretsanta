@@ -12,7 +12,11 @@
     <div class="bg">
         {{> hoverIcons}}
         <main role="main" class="centerer text-center">
+            {{#if letterUrl}}
             <iframe id="letterIframe" src="{{ letterUrl }}" referrerpolicy="no-referrer">Laen kirja...</iframe>
+            {{else}}
+            <div class="letter-missing">Jõuluvana kiri pole veel valmis.</div>
+            {{/if}}
         </main>
     </div>
 </body>

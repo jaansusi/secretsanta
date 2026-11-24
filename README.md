@@ -208,8 +208,6 @@ Optional:
 - `DB_SSL` / `DB_SSL_CA`: `true` to require a verified TLS connection to Postgres; PEM CA for a private CA.
 - `DB_LOGGING`: `true` logs every SQL statement. Local debugging only, since statements contain decryption codes.
 - `STORE_DEBUG_ASSIGNMENTS`: `true` (with `NODE_ENV=development`) stores a plaintext copy of each assignment.
-- `GOOGLE_DOC_LETTER_LINK`: https URL of the letter on `/kiri`, for visitors who are not signed in and for groups
-  that have not set their own (admin settings, https only).
 
 ## Scripts
 

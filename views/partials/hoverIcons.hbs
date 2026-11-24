@@ -1,10 +1,16 @@
 <div id="navigationIconsContainer">
+    {{!-- Not on the login view, which is the home page itself. --}}
+    {{#unless hideHome}}
     <a href="/">
         <i class="bi bi-house-fill"></i>
     </a>
+    {{/unless}}
+    {{!-- Only when the visitor's group has a letter (admin settings). --}}
+    {{#if showLetter}}
     <a href="/kiri">
         <i class="bi bi-envelope-paper-fill"></i>
     </a>
+    {{/if}}
     {{!-- Extra icons from the page, e.g. the logout button on the main page. --}}
     {{#if @partial-block}}{{> @partial-block}}{{/if}}
     {{!-- Which group's mission this is, for people in several groups (with a link to switch). --}}

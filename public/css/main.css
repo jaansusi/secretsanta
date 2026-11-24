@@ -268,7 +268,8 @@ canvas {
     }
 }
 
-#webViewWarning {
+#webViewWarning,
+.letter-missing {
     background-color: white;
     padding: 1em;
     border-radius: 1em;

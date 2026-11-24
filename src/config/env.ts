@@ -60,10 +60,6 @@ export function validateEnvironment(): string[] {
         warnings.push('HOST is not https: session cookies will not get the Secure flag.');
     }
 
-    if (process.env.GOOGLE_DOC_LETTER_LINK && !httpsOrigin(process.env.GOOGLE_DOC_LETTER_LINK)) {
-        warnings.push('GOOGLE_DOC_LETTER_LINK must be an https URL; the letter page will not be able to embed it.');
-    }
-
     if (errors.length > 0) {
         throw new Error('Invalid configuration:\n - ' + errors.join('\n - '));
     }
