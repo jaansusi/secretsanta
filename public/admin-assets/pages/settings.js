@@ -1,6 +1,6 @@
 import { api } from '../lib/api.js';
 import { html, mount, $, on } from '../lib/dom.js';
-import { pageHead, toast, setDirty, info, confirmDialog } from '../lib/ui.js';
+import { pageHead, toast, setDirty, info, confirmDialog, downloadCsv } from '../lib/ui.js';
 import { plural, fmtDateTime, relTime } from '../lib/format.js';
 
 export async function render(view) {
@@ -79,6 +79,7 @@ export async function render(view) {
                     <dt>Finished</dt><dd>${maze.finished}</dd>
                     <dt>Unfinished</dt><dd>${maze.unfinished}</dd>
                     <dt>Leader</dt><dd>${leader ? `${leader.name} (${leader.totalMoves} moves)` : html`<span class="muted">none yet</span>`}</dd>
+                    ${maze.archived ? html`<dt>Archived ${info('Games from earlier scoreboard resets. They count nowhere, but are kept and included in the data download.', { align: 'left' })}</dt><dd>${maze.archived}</dd>` : ''}
                 </dl>
                 ${maze.board.rows.length || maze.board.unfinished.length ? html`
                     <div class="table-wrap"><table class="table">
@@ -119,7 +120,13 @@ export async function render(view) {
                             <td class="nowrap">${game.input ?? html`<span class="muted">–</span>`}</td>
                         </tr>`)}</tbody>
                     </table></div>` : ''}
-                <div><button type="button" class="btn btn-danger" id="mazeReset" ${maze.games ? '' : 'disabled'}><i class="bi bi-trash"></i>Reset scoreboard</button></div>`);
+                <div class="page-actions">
+                    <button type="button" class="btn" data-maze-export="json" ${maze.games || maze.archived ? '' : 'disabled'}><i class="bi bi-download"></i>All data (JSON)</button>
+                    <button type="button" class="btn" data-maze-export="games" ${maze.games || maze.archived ? '' : 'disabled'}><i class="bi bi-filetype-csv"></i>Games CSV</button>
+                    <button type="button" class="btn" data-maze-export="events" ${maze.games || maze.archived ? '' : 'disabled'}><i class="bi bi-filetype-csv"></i>Events CSV</button>
+                    ${info('Everything recorded about the maze in this group, archived games included: every game with every move, undo, wall hit, restart and pause, plus when people opened the maze and on which device. JSON has it all in one file; the CSVs are for spreadsheets (one row per game, one row per event).', { align: 'left' })}
+                </div>
+                <div><button type="button" class="btn btn-danger" id="mazeReset" ${maze.games ? '' : 'disabled'}><i class="bi bi-arrow-counterclockwise"></i>Reset scoreboard</button></div>`);
         } catch (err) {
             mount(body, html`<div class="callout callout-danger"><i class="bi bi-exclamation-octagon"></i>${err.message}</div>`);
         }
@@ -138,16 +145,23 @@ export async function render(view) {
     on(view, 'click', '#mazeReset', async () => {
         const ok = await confirmDialog({
             title: 'Reset the maze scoreboard',
-            message: "Deletes every recorded maze game, finished or not, e.g. after testing. This cannot be undone.",
+            message: "Empties the scoreboard, e.g. after testing: every game so far stops counting and players start from zero. The games are archived, not deleted, and stay in the data download.",
             confirmLabel: 'Reset',
             danger: true,
-            typeToConfirm: 'RESET',
         });
         if (!ok) return;
         try {
-            const { removed } = await api('/maze', { method: 'DELETE' });
-            toast(`Scoreboard reset (${plural(removed, 'game')} removed)`);
+            const { archived } = await api('/maze', { method: 'DELETE' });
+            toast(`Scoreboard reset (${plural(archived, 'game')} archived)`);
             loadMaze();
+        } catch (err) {
+            toast(err.message, 'error');
+        }
+    });
+
+    on(view, 'click', '[data-maze-export]', async (event, button) => {
+        try {
+            downloadMazeData(button.dataset.mazeExport, await api('/maze/export'));
         } catch (err) {
             toast(err.message, 'error');
         }
@@ -254,4 +268,34 @@ function fmtDuration(ms) {
     const total = Math.max(0, Math.round((ms ?? 0) / 1000));
     const h = Math.floor(total / 3600), m = Math.floor(total / 60) % 60, sec = String(total % 60).padStart(2, '0');
     return h ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
+}
+
+/** Saves the maze data download (GET /maze/export) as JSON, or as one CSV of games or of events. */
+function downloadMazeData(format, data) {
+    const stamp = new Date(data.exportedAt).toISOString().slice(0, 10);
+    const base = `maze-${data.group.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || data.group.id}-${stamp}`;
+    if (format === 'json') {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+        link.download = `${base}.json`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+        return;
+    }
+    const col = (label, key = label) => ({ label, value: row => row[key] });
+    if (format === 'games') {
+        downloadCsv(`${base}-games.csv`, [
+            col('gameId', 'id'), col('userId'), col('name'), col('level'), col('status'), col('endReason'), col('cheat'), col('archivedAt'),
+            col('input'), col('moveCount'), col('actions'), col('undos'), col('par'), col('stars'), col('startedAt'), col('finishedAt'),
+            col('durationMs'), col('lastActivityAt'), { label: 'events', value: game => game.events.length },
+            { label: 'wallHits', value: game => game.events.filter(e => e.type === 'blocked').length }, col('moves'),
+        ], data.games);
+        return;
+    }
+    const rows = data.games.flatMap(game => game.events.map(event => ({ ...event, gameId: game.id, userId: game.userId, name: game.name, level: game.level })));
+    downloadCsv(`${base}-events.csv`, [
+        col('gameId'), col('userId'), col('name'), col('level'), col('seq'), col('type'), col('dir'), col('input'), col('reason'),
+        { label: 'ballX', value: e => e.ball?.[0] }, { label: 'ballY', value: e => e.ball?.[1] },
+        { label: 'mazeX', value: e => e.maze?.[0] }, { label: 'mazeY', value: e => e.maze?.[1] }, col('at'),
+    ], rows);
 }

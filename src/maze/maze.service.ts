@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { Op } from 'sequelize';
 import { User } from 'src/user/entities/user.entity';
 import { MazeGame } from './entities/maze-game.entity';
 import { MazeGameEvent } from './entities/maze-game-event.entity';
@@ -147,7 +148,7 @@ export class MazeService {
 
     /** The agent's best finished result per level id. */
     public async myResults(userId: number): Promise<Record<number, LevelResult>> {
-        const finished = await this.games.findAll({ where: { userId, status: 'finished' }, attributes: ['level', 'moveCount'] });
+        const finished = await this.games.findAll({ where: { userId, status: 'finished', archivedAt: null }, attributes: ['level', 'moveCount'] });
         const out: Record<number, LevelResult> = {};
         for (const game of finished) {
             const level = levelById(game.level);
@@ -163,7 +164,7 @@ export class MazeService {
      */
     public async board(groupId: number, viewerId: number | null, { detailed = false } = {}): Promise<BoardView> {
         const rows = await this.games.findAll({
-            where: { userId: await this.memberIds(groupId) },
+            where: { userId: await this.memberIds(groupId), archivedAt: null },
             attributes: ['userId', 'level', 'status', 'moveCount', 'startedAt', 'finishedAt', 'durationMs', 'cheat', 'updatedAt'],
         });
         const { best, stats } = summarizeGames(rows.map(toGameRow), starsFor);
@@ -198,20 +199,22 @@ export class MazeService {
         };
     }
 
-    /** Admin: one group's totals and most recent games (with each finished game's time). */
+    /** Admin: one group's totals and most recent games (with each finished game's time). Archived games only as a count. */
     public async adminSummary(groupId: number) {
         const userId = await this.memberIds(groupId);
-        const [games, finished, players, recent] = await Promise.all([
-            this.games.count({ where: { userId } }),
-            this.games.count({ where: { userId, status: 'finished' } }),
-            this.games.count({ where: { userId }, distinct: true, col: 'userId' }),
-            this.games.findAll({ where: { userId }, order: [['updatedAt', 'DESC']], limit: 15, include: [{ model: User, attributes: ['name'] }] }),
+        const [games, finished, players, recent, archived] = await Promise.all([
+            this.games.count({ where: { userId, archivedAt: null } }),
+            this.games.count({ where: { userId, status: 'finished', archivedAt: null } }),
+            this.games.count({ where: { userId, archivedAt: null }, distinct: true, col: 'userId' }),
+            this.games.findAll({ where: { userId, archivedAt: null }, order: [['updatedAt', 'DESC']], limit: 15, include: [{ model: User, attributes: ['name'] }] }),
+            this.games.count({ where: { userId, archivedAt: { [Op.ne]: null } } }),
         ]);
         return {
             games,
             finished,
             unfinished: games - finished,
             players,
+            archived,
             recent: recent.map(game => ({
                 id: game.id,
                 name: game.user?.name ?? '?',
@@ -230,9 +233,70 @@ export class MazeService {
         };
     }
 
-    /** Admin: wipes every game of one group, e.g. after testing. */
+    /**
+     * Admin: every maze game of one group, archived ones too, each with its full event log, plus the
+     * levels and the group's participants: the raw material for a report. Holds no gift data.
+     */
+    public async exportData(groupId: number) {
+        const participants = await this.users.findAll({ where: { groupId }, attributes: ['id', 'name', 'isAdmin'], order: [['name', 'ASC']] });
+        const names = new Map(participants.map(user => [user.id, user.name]));
+        const games = await this.games.findAll({ where: { userId: participants.map(user => user.id) }, order: [['startedAt', 'ASC'], ['id', 'ASC']] });
+        const events = games.length
+            ? await this.events.findAll({ where: { gameId: games.map(game => game.id) }, order: [['gameId', 'ASC'], ['seq', 'ASC']], raw: true })
+            : [];
+        const byGame = new Map<number, MazeGameEvent[]>();
+        for (const event of events) {
+            byGame.set(event.gameId, [...(byGame.get(event.gameId) ?? []), event]);
+        }
+        return {
+            levels: LEVELS.map(level => ({ ...level.definition, par: level.par })),
+            participants: participants.map(user => ({ id: user.id, name: user.name, isAdmin: user.isAdmin })),
+            games: games.map(game => {
+                const level = levelById(game.level);
+                const finished = game.status === 'finished';
+                return {
+                    id: game.id,
+                    userId: game.userId,
+                    name: names.get(game.userId) ?? '?',
+                    level: game.level,
+                    status: game.status,
+                    endReason: game.endReason,
+                    cheat: game.cheat,
+                    archivedAt: game.archivedAt,
+                    input: game.input,
+                    moves: game.moves,
+                    moveCount: game.moveCount,
+                    actions: game.actions,
+                    /** Moves taken back: every move made minus the ones still on the path. Not meaningful for cheat games. */
+                    undos: game.cheat ? null : game.actions - game.moveCount,
+                    par: level?.par ?? null,
+                    stars: finished && level ? MazeEngine.stars(game.moveCount, level.par) : null,
+                    startedAt: game.startedAt,
+                    finishedAt: game.finishedAt,
+                    durationMs: game.durationMs,
+                    lastActivityAt: game.updatedAt,
+                    events: (byGame.get(game.id) ?? []).map(event => ({
+                        seq: event.seq,
+                        type: event.type,
+                        dir: event.dir,
+                        input: event.input,
+                        reason: event.reason,
+                        ball: event.ballX === null ? null : [event.ballX, event.ballY],
+                        maze: event.mazeX === null ? null : [event.mazeX, event.mazeY],
+                        at: event.at,
+                    })),
+                };
+            }),
+        };
+    }
+
+    /**
+     * Admin: clears one group's scoreboard, e.g. after testing. The games are archived, not deleted: they
+     * stop counting anywhere but stay in the data download. Returns how many were archived.
+     */
     public async reset(groupId: number): Promise<number> {
-        return this.games.destroy({ where: { userId: await this.memberIds(groupId) } });
+        const [archived] = await this.games.update({ archivedAt: new Date() }, { where: { userId: await this.memberIds(groupId), archivedAt: null } });
+        return archived;
     }
 
     /**
@@ -263,7 +327,8 @@ export class MazeService {
 
     private async requireGame(userId: number, gameId: number): Promise<MazeGame> {
         const game = await this.games.findByPk(gameId);
-        if (!game || game.userId !== userId) {
+        // An archived game is gone as far as the player is concerned: their next move starts a new one.
+        if (!game || game.userId !== userId || game.archivedAt) {
             throw new NotFoundException('Mängu ei leitud.');
         }
         if (game.status === 'finished') {

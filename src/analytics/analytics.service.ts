@@ -125,6 +125,17 @@ export class AnalyticsService {
         return result;
     }
 
+    /** Every event of the given types in one group, oldest first (for data downloads). */
+    public async eventsOfTypes(groupId: number, types: EventType[]) {
+        const events = await this.eventRepository.findAll({
+            where: { groupId, type: types },
+            attributes: ['id', 'type', 'userId', 'visitorId', 'device', 'browser', 'os', 'meta', 'createdAt'],
+            order: [['createdAt', 'ASC'], ['id', 'ASC']],
+            raw: true,
+        });
+        return events as unknown as Pick<AnalyticsEvent, 'id' | 'type' | 'userId' | 'visitorId' | 'device' | 'browser' | 'os' | 'meta' | 'createdAt'>[];
+    }
+
     public async recentEvents(options: { groupId: number; limit: number; offset: number; type?: string; userId?: number }) {
         const where: string[] = ['e."groupId" = :groupId'];
         const replacements: Record<string, unknown> = { groupId: options.groupId, limit: options.limit, offset: options.offset };

@@ -72,6 +72,13 @@ export class MazeGame extends Model {
     @Column({ type: DataType.STRING(8) })
     input: string | null;
 
+    /**
+     * Set by the admin's "Reset scoreboard": the game no longer counts anywhere (scoreboard, best results,
+     * totals) and cannot be continued, but is kept, with its events, for the data download.
+     */
+    @Column({ type: DataType.DATE })
+    archivedAt: Date | null;
+
     /** Everything that happened in the game, in order. */
     @HasMany(() => MazeGameEvent, { foreignKey: 'gameId' })
     events: MazeGameEvent[];

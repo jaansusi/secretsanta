@@ -34,7 +34,7 @@
                 throw new Error('Logi uuesti sisse.');
             }
             const json = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(json.message || 'Midagi läks valesti, proovi uuesti.');
+            if (!response.ok) throw Object.assign(new Error(json.message || 'Midagi läks valesti, proovi uuesti.'), { status: response.status });
             return json;
         });
     }
@@ -141,8 +141,9 @@
         const body = Object.assign({ moves: game.moves, actions: record.actions }, logPart());
         const key = body.moves + '|' + body.actions;
         if (record.synced === key && !body.events.length) return Promise.resolve();
+        let savedTo = null;
         return target
-            .then(gameId => api('games/' + gameId + '/progress', body, { keepalive }))
+            .then(gameId => api('games/' + (savedTo = gameId) + '/progress', body, { keepalive }))
             .then(() => {
                 if (attempt !== record.attempt) return;
                 record.synced = key;
@@ -150,7 +151,19 @@
                 saveProgress();
                 if (record.log.length) scheduleSync();
             })
-            .catch(() => { /* the next move or page close tries again */ });
+            .catch(err => {
+                // The game is gone (the admin reset the scoreboard): the next move records a new one.
+                if (err.status === 404 && attempt === record.attempt && record.gameId === savedTo) forgetGame();
+                /* otherwise the next move or page close tries again */
+            });
+    }
+
+    /** Drops the current game's server id, so the path so far is recorded as a new game. */
+    function forgetGame() {
+        record.gameId = null;
+        record.starting = null;
+        record.synced = '';
+        if (!game.solved) saveProgress();   // a finished game's progress is already cleared
     }
 
     /**
@@ -423,9 +436,15 @@
         clearProgress(level.id);
         clearTimeout(record.timer);
         renderStatus();
-        ensureGame().then(gameId => {
+        const send = () => ensureGame().then(gameId => {
             if (!gameId) throw new Error('Mängu ei õnnestunud alustada.');
             return submit(gameId);
+        });
+        send().catch(err => {
+            // The game was archived meanwhile (scoreboard reset): record this finish as a new game.
+            if (err.status !== 404 || attempt !== record.attempt) throw err;
+            forgetGame();
+            return send();
         }).then(response => {
             if (attempt === record.attempt) record.log = [];   // the finish carried them
             data.results = response.results;
