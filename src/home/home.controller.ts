@@ -59,6 +59,8 @@ export class HomeController {
         loggedIn: true,
         isAdmin: await this.adminAccess.canManageGroup(request, user.groupId),
         userName: user.name,
+        // Stamped on the closed dossier's cover; the player's own codename, so safe to show before opening.
+        agentName: user.decryptionCode ? await this.userService.agentName(user) : '',
         groupName: await this.switchableGroupName(request, user),
         showLetter: !!this.settingsService.letterUrl(user.groupId),
         year,

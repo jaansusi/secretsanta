@@ -2,6 +2,37 @@ body {
     font-size: 1.5em;
     /* noise image */
     background-image: url('/images/background.png');
+    /* The night sky at the top of the image: shows in the iPhone pull-down past the top instead of white. */
+    background-color: #222733;
+}
+
+/* Backdrop for the fixed top icons, faded in once the page scrolls (header.js sets html.scrolled),
+   so content scrolling underneath stays readable. Below the icons (z-index 10), above the page. */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    z-index: 9;
+    background: rgba(24, 27, 38, 0.78);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+html.scrolled body::before {
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body::before {
+        transition: none;
+    }
 }
 
 /* Dossier-style accept button: typewriter caps, ink outline, hard offset shadow */

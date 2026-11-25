@@ -37,7 +37,8 @@
     <main role="main" class="centerer text-center">
 
       {{#if encryptionWithCode}}
-      <div class="briefing" id="inputContainer">
+      {{!-- Signed in with a mission waiting: the card is the closed dossier (same tab as the open one). --}}
+      <div class="briefing {{#if loggedIn}}{{#unless waiting}}briefing-folder{{/unless}}{{/if}}" id="inputContainer">
         {{#if waiting}}
         {{!-- Signed in, but not in a draw yet: no code, so nothing to open (the button would only fail). --}}
         <div class="briefing-greeting">Tere, {{userName}}!</div>
@@ -46,10 +47,14 @@
         </h2>
         {{else}}
         {{#if loggedIn}}
-        <div class="briefing-greeting">Tere, {{userName}}!</div>
-        <h2 class="briefing-title briefing-headline">
-          Sulle on saabunud uus missioon
-        </h2>
+        {{!-- Filled in by index.js: the same number the open file's tab shows. --}}
+        <div class="dossier-tab"><span id="folderNumber"></span></div>
+        <div class="folder-label">
+          <h2 class="briefing-title briefing-headline">Operatsioon Kinkekott</h2>
+        </div>
+        {{#if agentName}}
+        <div class="stamp folder-stamp">{{agentName}}</div>
+        {{/if}}
         {{else}}
         <h2 class="briefing-title">Sisesta oma kood</h2>
         {{/if}}
@@ -113,7 +118,7 @@
       <!-- The classified file, filled in by index.js after the name is resolved -->
       <div id="dossier" class="dossier hidden">
         <div class="dossier-folder">
-          <div class="dossier-tab">Toimik nr <span id="dossierNumber"></span></div>
+          <div class="dossier-tab"><span id="dossierNumber"></span></div>
           <div class="dossier-paper">
             <div class="stamp" id="dossierStamp">Salajane</div>
             <div class="dossier-kicker">Jõululoos {{year}} · Operatsioon Kinkekott</div>

@@ -161,8 +161,7 @@ function renderDossier(res) {
         codename.textContent = '- koodnimi ' + targetCodename;
         target.appendChild(codename);
     }
-    const code = (document.getElementById('userCode').value || '').trim();
-    document.getElementById('dossierNumber').textContent = dossierNumber(res.giftingTo, code);
+    document.getElementById('dossierNumber').textContent = dossierNumber(document.getElementById('userCode').value);
 
     if (dossier.hasPhoto) {
         const photo = document.getElementById('dossierPhoto');
@@ -207,14 +206,22 @@ function digitsOf(text, length) {
 }
 
 /**
- * A stable, official-looking file number: year, two groups from the recipient's
- * name, and a final group from the agent's identity code when one is known.
+ * A stable, official-looking file number: the year and three groups from the agent's own code.
+ * Deliberately nothing from the recipient: the closed file shows it too, and a number derived from
+ * the target could be matched against the group's names before the file is opened.
  */
-function dossierNumber(name, code) {
-    let number = new Date().getFullYear() + '-' + digitsOf(name, 5) + '-' + digitsOf(name.split('').reverse().join(''), 3);
-    if (code) number += '-' + digitsOf(code, 4);
-    return number;
+function dossierNumber(code) {
+    code = (code || '').trim();
+    return new Date().getFullYear() + '-' + digitsOf(code, 5) + '-' + digitsOf(code.split('').reverse().join(''), 3)
+        + '-' + digitsOf('toimik:' + code, 4);
 }
+
+// The closed file on the "new mission" card carries the same number as the open one.
+(function labelClosedFolder() {
+    const label = document.getElementById('folderNumber');
+    const code = document.getElementById('userCode');
+    if (label && code && code.value.trim()) label.textContent = dossierNumber(code.value);
+})();
 
 /** "Mari Maasikas" becomes "Mari MAASIKAS", the way a case file lists a surname. */
 function formatTargetName(name) {

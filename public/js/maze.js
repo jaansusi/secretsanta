@@ -457,8 +457,7 @@
             const best = data.results[level.id];
             $('winStars').innerHTML = '';
             $('winStars').appendChild(starsHtml(response.attempt.stars, 3));
-            $('winText').textContent = moves(response.attempt.moves) + '.'
-                + (response.attempt.stars === 3 ? ' Täiuslik!' : ' Lühem tee on olemas.');
+            $('winText').textContent = moves(response.attempt.moves);
             $('winBest').textContent = response.improved && best
                 ? 'Uus isiklik rekord!'
                 : best ? 'Sinu parim: ' + moves(best.moves) + '.' : '';
