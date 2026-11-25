@@ -5,7 +5,7 @@ import * as crypto from 'crypto';
 import { User } from 'src/user/entities/user.entity';
 import { Family } from 'src/family/entities/family.entity';
 import { EncryptionService, EncryptionStrategy } from 'src/encryption/encryption.service';
-import { AuditActor, AuditService } from 'src/audit/audit.service';
+import { AuditActor, AuditService, secret } from 'src/audit/audit.service';
 
 export type CheckStatus = 'pass' | 'fail' | 'warn' | 'na';
 
@@ -356,7 +356,7 @@ export class DrawService {
             entityType: 'participant',
             entityId: latecomer.id,
             summary: revealSanta
-                ? `Added ${latecomer.name} to the draw: ${santa.name} now gives to them`
+                ? `Added ${latecomer.name} to the draw: ${secret(santa.name)} now gives to them`
                 : `Added ${latecomer.name} to the draw`,
             details: revealSanta ? { santaId: santa.id } : undefined,
         });
@@ -394,6 +394,129 @@ export class DrawService {
             points.push({ santa, recipient });
         }
         return points;
+    }
+
+    /**
+     * Everyone `santaId` could be set to give to (see reassign). `blocked` says why a person cannot be chosen;
+     * their current recipient is listed like anyone else so the list does not give it away.
+     */
+    public async reassignOptions(groupId: number, santaId: number) {
+        const users = await this.loadUsers(groupId);
+        const santa = this.requireInDraw(users, santaId);
+        const links = this.currentLinks(users);
+        const forbidden = this.forbiddenMap(users.map(toNode)).get(santa.id)!;
+        return users.filter(user => user.id !== santa.id).map(user => {
+            let blocked: string | null = null;
+            if (!links.has(user.id)) blocked = 'not in the draw';
+            else if (santa.familyId && user.familyId === santa.familyId) blocked = 'same family';
+            else if (forbidden.has(user.id)) blocked = "last year's recipient";
+            else if (links.get(santa.id)!.id !== user.id && !this.reassignPlans(users, links, santa, user).length) {
+                blocked = 'does not fit without breaking the rules for others';
+            }
+            return { id: user.id, name: user.name, blocked };
+        }).sort((a, b) => Number(!!a.blocked) - Number(!!b.blocked) || a.name.localeCompare(b.name));
+    }
+
+    /**
+     * Makes `santaId` give to `recipientId` in the existing draw, changing as few others as possible. Whoever
+     * gave to the new recipient needs someone else, so one of two re-wirings is used (X = santa, Y = new
+     * recipient, A = X's old recipient, S = Y's old Santa, B = Y's old recipient):
+     * - move Y next to X: X -> Y -> A, and S -> B. Keeps one chain; S and Y get new recipients.
+     * - swap: X -> Y, and S -> A. Only S gets a new recipient, but the chain splits in two.
+     * Every new link must follow the family and last-year rules. The re-wiring that changes the fewest people in
+     * `opened` (who already saw their mission) wins, preferring the one that keeps the chain. Personal links stay.
+     */
+    public async reassign(actor: AuditActor, groupId: number, santaId: number, recipientId: number, opened: Set<number>) {
+        const { santa, recipient, changed, kind } = await this.sequelize.transaction(async transaction => {
+            const users = await this.userRepository.findAll({ where: { groupId }, order: [['id', 'ASC']], transaction, lock: transaction.LOCK.UPDATE });
+            const santa = this.requireInDraw(users, santaId);
+            const recipient = users.find(user => user.id === recipientId);
+            if (!recipient || recipient.id === santa.id) {
+                throw new BadRequestException('Choose someone else in the group');
+            }
+            const links = this.currentLinks(users);
+            if (!links.has(recipient.id)) {
+                throw new BadRequestException(`${recipient.name} is not in the draw yet: add them to it first`);
+            }
+            if (links.get(santa.id)!.id === recipient.id) {
+                throw new BadRequestException(`${santa.name} already gives to ${recipient.name}`);
+            }
+            const forbidden = this.forbiddenMap(users.map(toNode)).get(santa.id)!;
+            if (forbidden.has(recipient.id)) {
+                throw new BadRequestException(`${santa.name} cannot give to ${recipient.name}: same family or last year's recipient`);
+            }
+            const plans = this.reassignPlans(users, links, santa, recipient);
+            if (!plans.length) {
+                throw new BadRequestException(`${recipient.name} does not fit without breaking the family or last-year rules for someone else. Run the draw again instead.`);
+            }
+            const cost = (plan: Map<User, User>) => [...plan.keys()].filter(user => user.id !== santa.id && opened.has(user.id)).length;
+            const plan = plans.reduce((best, next) => (cost(next) < cost(best) ? next : best));
+
+            const debug = process.env.NODE_ENV === 'development' && process.env.STORE_DEBUG_ASSIGNMENTS === 'true';
+            for (const [giver, newRecipient] of plan) {
+                const assignment = this.encryptionService.reencryptGiftingTo(giver, newRecipient.name);
+                if (debug) {
+                    assignment.giftingToDebug = newRecipient.name;
+                }
+                await this.userRepository.update(assignment, { where: { id: giver.id }, transaction });
+            }
+            const kind: 'move' | 'swap' = plan.size === 3 ? 'move' : 'swap';
+            return { santa, recipient, kind, changed: [...plan.keys()].filter(user => user.id !== santa.id) };
+        });
+        await this.auditService.log(actor, {
+            groupId,
+            action: 'draw.reassign',
+            entityType: 'participant',
+            entityId: santa.id,
+            summary: `Set ${santa.name} to give to ${secret(recipient.name)} (${changed.length} other${changed.length === 1 ? '' : 's'} got a new recipient)`,
+            details: { recipientId: recipient.id, kind, changedIds: changed.map(user => user.id) },
+        });
+        return { santa, recipient, changed, kind };
+    }
+
+    /** Valid re-wirings for reassign, best first, as giver -> new recipient. Empty when none follows the rules. */
+    private reassignPlans(users: User[], links: Map<number, User>, santa: User, recipient: User): Map<User, User>[] {
+        const forbidden = this.forbiddenMap(users.map(toNode));
+        const allowed = (plan: Map<User, User>) => [...plan].every(([giver, to]) => !forbidden.get(giver.id)!.has(to.id));
+        const oldRecipient = links.get(santa.id)!;
+        const recipientsSanta = users.find(user => links.get(user.id)?.id === recipient.id)!;
+        const recipientsRecipient = links.get(recipient.id)!;
+
+        const move = new Map<User, User>([[santa, recipient], [recipient, oldRecipient], [recipientsSanta, recipientsRecipient]]);
+        const swap = new Map<User, User>([[santa, recipient], [recipientsSanta, oldRecipient]]);
+        return [move, swap].filter(allowed);
+    }
+
+    /** Who gives to whom right now. Throws unless the draw is a clean one-to-one assignment (latecomers aside). */
+    private currentLinks(users: User[]): Map<number, User> {
+        const byName = new Map(users.map(user => [user.name, user]));
+        const links = new Map<number, User>();
+        for (const user of users.filter(u => u.giftingTo)) {
+            const name = this.tryDecrypt(user);
+            const recipient = name !== null ? byName.get(name) : undefined;
+            if (!recipient || !recipient.giftingTo) {
+                throw new BadRequestException('The current draw has problems (see the Draw page). Run it again first.');
+            }
+            links.set(user.id, recipient);
+        }
+        if (new Set([...links.values()].map(user => user.id)).size !== links.size) {
+            throw new BadRequestException('The current draw has problems (see the Draw page). Run it again first.');
+        }
+        return links;
+    }
+
+    private requireInDraw(users: User[], santaId: number): User {
+        const santa = users.find(user => user.id === santaId);
+        if (!santa) {
+            throw new NotFoundException('Participant not found');
+        }
+        if (!santa.giftingTo) {
+            throw new BadRequestException(`${santa.name} is not in the draw: run the draw or add them to it first`);
+        }
+        if (santa.encryptionStrategy !== EncryptionStrategy.CODE) {
+            throw new BadRequestException(`${santa.name} uses an encryption strategy that cannot be changed on the server`);
+        }
+        return santa;
     }
 
     /** Time of the group's latest draw: activity before it belongs to a previous season. */

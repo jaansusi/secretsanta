@@ -178,6 +178,83 @@ describe('DrawService: adding a latecomer', () => {
     });
 });
 
+describe('DrawService: choosing a recipient by hand', () => {
+    const chain = (users: FakeUser[], encryption: EncryptionService) => {
+        const byName = new Map(users.map(u => [u.name, u]));
+        return new Map(users.filter(u => u.giftingTo).map(u => [u.id, byName.get(encryption.decryptGiftingTo(u as any))!.id]));
+    };
+    /** Writes a fixed chain, e.g. [1, 2, 3] means 1 -> 2 -> 3 -> 1. */
+    const draw = (users: FakeUser[], encryption: EncryptionService, order: number[]) => order.forEach((id, i) => {
+        const santa = users.find(u => u.id === id)!;
+        const recipient = users.find(u => u.id === order[(i + 1) % order.length])!;
+        Object.assign(santa, encryption.reencryptGiftingTo({ ...santa, decryptionCode: santa.decryptionCode || `code-${id}` } as any, recipient.name));
+    });
+    const people = (n: number) => Array.from({ length: n }, (_, i) => ({ id: i + 1, name: `P${i + 1}` }));
+
+    it('moves the chosen recipient next to them, keeping one chain and everyone\'s link', async () => {
+        const { service, users, encryption, audit } = setup(people(5));
+        draw(users, encryption, [1, 2, 3, 4, 5]);
+        const codes = users.map(u => u.decryptionCode);
+        // 1 -> 4: 4 leaves its place (3 -> 5) and goes between 1 and 2.
+        const { changed, kind } = await service.reassign(actor, GROUP, 1, 4, new Set());
+        expect(kind).toBe('move');
+        expect(Object.fromEntries(chain(users, encryption))).toEqual({ 1: 4, 4: 2, 2: 3, 3: 5, 5: 1 });
+        expect(changed.map(u => u.id).sort()).toEqual([3, 4]);
+        expect(users.map(u => u.decryptionCode)).toEqual(codes);
+        const status = await service.status(GROUP);
+        expect(status.state).toBe('valid');
+        expect(status.checks.find(c => c.key === 'single_chain')!.status).toBe('pass');
+        expect(audit.log).toHaveBeenCalledWith(actor, expect.objectContaining({ action: 'draw.reassign', entityId: 1, summary: expect.stringMatching(/^Set P1 to give to \|\|P4\|\| /) }));
+    });
+
+    it('swaps instead when the moved person already opened their mission', async () => {
+        const { service, users, encryption } = setup(people(5));
+        draw(users, encryption, [1, 2, 3, 4, 5]);
+        const { changed, kind } = await service.reassign(actor, GROUP, 1, 4, new Set([4]));
+        expect(kind).toBe('swap');
+        expect(Object.fromEntries(chain(users, encryption))).toEqual({ 1: 4, 3: 2, 2: 3, 4: 5, 5: 1 });
+        expect(changed.map(u => u.id)).toEqual([3]);
+        expect((await service.status(GROUP)).state).toBe('valid');
+    });
+
+    it('swaps when moving would break the family rule for someone else', async () => {
+        // 1 -> 2 -> 3 -> 4 -> 5 -> 1. Moving 4 next to 1 needs 3 -> 5, but they are family.
+        const { service, users, encryption } = setup([
+            { id: 1, name: 'P1' }, { id: 2, name: 'P2' }, { id: 3, name: 'P3', familyId: 9 }, { id: 4, name: 'P4' }, { id: 5, name: 'P5', familyId: 9 },
+        ]);
+        draw(users, encryption, [1, 2, 3, 4, 5]);
+        await service.reassign(actor, GROUP, 1, 4, new Set());
+        expect(Object.fromEntries(chain(users, encryption))).toEqual({ 1: 4, 3: 2, 2: 3, 4: 5, 5: 1 });
+    });
+
+    it('refuses when no re-wiring follows the rules, and leaves the draw alone', async () => {
+        // 1 -> 2 -> 3 -> 4 -> 1. 1 -> 3 needs 2 -> 4 (family) or 2 -> 2 (themselves).
+        const { service, users, encryption } = setup([
+            { id: 1, name: 'Ann' }, { id: 2, name: 'Ben', familyId: 9 }, { id: 3, name: 'Cat' }, { id: 4, name: 'Dan', familyId: 9 },
+        ]);
+        draw(users, encryption, [1, 2, 3, 4]);
+        const before = chain(users, encryption);
+        const cat = (await service.reassignOptions(GROUP, 1)).find(o => o.name === 'Cat')!;
+        expect(cat.blocked).toBe('does not fit without breaking the rules for others');
+        await expect(service.reassign(actor, GROUP, 1, 3, new Set())).rejects.toThrow('does not fit');
+        expect(chain(users, encryption)).toEqual(before);
+    });
+
+    it('rejects their family, last year\'s recipient, their current recipient and people outside the draw', async () => {
+        const { service, users, encryption } = setup([
+            { id: 1, name: 'Ann', familyId: 1, lastYearGiftingToId: 4 }, { id: 2, name: 'Ben', familyId: 1 },
+            { id: 3, name: 'Cat' }, { id: 4, name: 'Dan' }, { id: 5, name: 'Eve' }, { id: 6, name: 'Liz' },
+        ]);
+        draw(users, encryption, [1, 3, 2, 5, 4]);
+        const options = Object.fromEntries((await service.reassignOptions(GROUP, 1)).map(o => [o.name, o.blocked]));
+        expect(options).toEqual({ Ben: 'same family', Cat: null, Dan: "last year's recipient", Eve: null, Liz: 'not in the draw' });
+        await expect(service.reassign(actor, GROUP, 1, 2, new Set())).rejects.toThrow('cannot give to Ben');
+        await expect(service.reassign(actor, GROUP, 1, 3, new Set())).rejects.toThrow('already gives to Cat');
+        await expect(service.reassign(actor, GROUP, 1, 6, new Set())).rejects.toThrow('not in the draw');
+        await expect(service.reassignOptions(GROUP, 6)).rejects.toThrow('not in the draw');
+    });
+});
+
 describe('EncryptionService', () => {
     const encryption = new EncryptionService();
 

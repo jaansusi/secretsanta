@@ -76,6 +76,21 @@ export function confirmDialog({ title, message, confirmLabel = 'Confirm', danger
     });
 }
 
+/** A dialog that only shows something, with one close button. onOpen(dialog) wires up buttons inside the body. */
+export function infoDialog({ title, body, closeLabel = 'Done', wide = false, onOpen }) {
+    return new Promise(resolve => {
+        const dialog = openDialog(html`
+            <form method="dialog">
+                <div class="modal-head"><h2>${title}</h2><button class="icon-button" value="close" aria-label="Close"><i class="bi bi-x-lg"></i></button></div>
+                <div class="modal-body">${body}</div>
+                <div class="modal-foot"><button class="btn btn-primary" value="close" id="infoClose">${closeLabel}</button></div>
+            </form>`, { wide });
+        if (onOpen) onOpen(dialog);
+        $('#infoClose', dialog).focus();
+        dialog.addEventListener('close', () => resolve());
+    });
+}
+
 /**
  * A form in a dialog. onSubmit(formElement) may throw; the message is shown in the dialog and it stays
  * open. Resolves to whatever onSubmit returned, or null when cancelled.

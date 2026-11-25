@@ -209,6 +209,14 @@ code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monosp
     font-size: 12px; font-weight: 500; background: var(--info-soft); color: var(--ink-2); white-space: nowrap;
 }
 .badge i { font-size: 12px; }
+/* A name hidden in an audit summary until clicked (see auditSummary). */
+.secret {
+    display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; border-radius: 4px; cursor: pointer;
+    border: 1px dashed var(--line-strong); color: var(--muted); font-weight: 400; font-style: italic; user-select: none;
+}
+.secret i { font-size: 12px; font-style: normal; }
+.secret:hover, .secret:focus-visible { border-color: currentColor; color: var(--ink-2); }
+.secret.shown { border-style: solid; color: inherit; font-style: normal; font-weight: 500; }
 .badge-good { background: var(--good-soft); color: var(--good); }
 .badge-warn { background: var(--warn-soft); color: var(--warn); }
 .badge-bad { background: var(--bad-soft); color: var(--bad); }

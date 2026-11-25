@@ -1,6 +1,6 @@
 import { api, me } from '../lib/api.js';
 import { html, mount, $, on } from '../lib/dom.js';
-import { pageHead, confirmDialog, formDialog, toast, toastWarnings, setDirty, copyText, emptyState, info } from '../lib/ui.js';
+import { pageHead, confirmDialog, formDialog, infoDialog, toast, toastWarnings, setDirty, copyText, emptyState, info } from '../lib/ui.js';
 import { fmtBytes, fmtDateTime, relTime } from '../lib/format.js';
 import { navigate } from '../lib/router.js';
 import { auditItem, eventItem } from './shared.js';
@@ -125,7 +125,8 @@ export async function render(view, { params }) {
                 <dl class="kv">
                     <dt>In the draw</dt><dd>${participant.hasAssignment ? html`<span class="badge badge-good">Yes</span>` : html`<span class="badge ${drawn ? 'badge-bad' : ''}">No</span>
                         ${drawn ? html` <button type="button" class="btn btn-sm" id="addToDraw" title="Add them to the current draw without redrawing everyone"><i class="bi bi-person-plus"></i>Add to draw</button>` : ''}`}</dd>
-                    <dt>Gifting to</dt><dd id="recipientValue">${recipientValue()}</dd>
+                    <dt>Gifting to</dt><dd><span id="recipientValue">${recipientValue()}</span>
+                        ${participant.hasAssignment ? html` <button type="button" class="btn btn-sm" id="assignRecipient" title="Choose who they give to"><i class="bi bi-pencil"></i>Assign</button>` : ''}</dd>
                     <dt>Opened mission</dt><dd>${a?.firstReveal ? fmtDateTime(a.firstReveal) : html`<span class="muted">Not yet</span>`}</dd>
                     <dt>Times opened</dt><dd class="num">${a?.reveals ?? 0}</dd>
                     <dt>Heard Santa</dt><dd>${a?.briefingComplete ? 'Yes' : html`<span class="muted">No</span>`}</dd>
@@ -263,6 +264,86 @@ export async function render(view, { params }) {
         recipient = null;
         mount($('#recipientValue', view), recipientValue());
     });
+
+    // Picks who they give to by hand. The server re-wires one or two other Santas so everyone still gets
+    // exactly one gift, preferring ones who have not opened their mission yet.
+    on(view, 'click', '#assignRecipient', async (e, button) => {
+        button.disabled = true;
+        let options;
+        try {
+            options = await api(`/participants/${id}/assign-options`);
+        } catch (err) {
+            button.disabled = false;
+            return toast(err.message, 'error');
+        }
+        button.disabled = false;
+        const result = await formDialog({
+            title: `Who should ${participant.name} give to?`,
+            submitLabel: 'Assign',
+            body: html`
+                <div class="field">
+                    <label for="assignTo">${participant.name} gives to</label>
+                    <select id="assignTo" name="recipientId" required>
+                        <option value="">Choose…</option>
+                        ${options.recipients.map(r => html`<option value="${r.id}" ${r.blocked ? 'disabled' : ''}>${r.name}${r.blocked ? ` · ${r.blocked}` : ''}</option>`)}
+                    </select>
+                </div>
+                <p class="muted">So that everyone still gets exactly one gift, one or two other Santas get a new recipient too.
+                    People who have not opened their mission yet are changed first, and personal links stay the same.
+                    Running the draw again undoes this.</p>`,
+            onSubmit: form => {
+                const value = form.elements.recipientId.value;
+                if (!value) throw new Error('Choose who they give to.');
+                return api(`/participants/${id}/assign-recipient`, { method: 'POST', body: { recipientId: Number(value) } });
+            },
+        });
+        if (!result) return;
+        participant = result.participant;
+        recipient = result.recipient;
+        refreshAll();
+        showAssignResult(result);
+    });
+
+    // Who changed, and who of them has to be told because they had already seen their old mission.
+    const showAssignResult = ({ recipient: to, santaOpenedAt, affected, keepsOneChain }) => {
+        const people = [{ id, name: participant.name, openedAt: santaOpenedAt, chosen: true }, ...affected];
+        const toTell = people.filter(p => p.openedAt).length;
+        const status = p => p.openedAt
+            ? html`<span class="badge badge-warn" title="Opened ${fmtDateTime(p.openedAt)}"><i class="bi bi-envelope-open"></i>Opened their mission · tell them</span>`
+            : html`<span class="badge badge-good"><i class="bi bi-envelope"></i>Not opened yet</span>`;
+        infoDialog({
+            title: 'Recipient assigned',
+            body: html`
+                <p><strong>${participant.name}</strong> now gives to <strong>${to.name}</strong>.
+                    ${affected.length} other${affected.length === 1 ? '' : 's'} got a new recipient so that everyone still gets exactly one gift.</p>
+                ${toTell
+                    ? html`<div class="callout callout-warn"><i class="bi bi-exclamation-triangle"></i><span>${toTell === 1 ? '1 person had' : `${toTell} people had`} already opened their mission and saw their old recipient. Let them know to open their link again.</span></div>`
+                    : html`<div class="callout callout-good"><i class="bi bi-check2-circle"></i><span>Nobody affected had opened their mission yet, so there is nobody to tell.</span></div>`}
+                <ul class="list" style="margin:12px -18px">
+                    ${people.map(p => html`<li>
+                        <div class="grow">
+                            <div class="title">${p.chosen ? p.name : html`<a href="/admin/participants/${p.id}">${p.name}</a>`}</div>
+                            <div class="meta">${p.chosen ? `Now gives to ${to.name}` : 'New recipient (kept hidden)'}</div>
+                        </div>
+                        ${status(p)}
+                        <button type="button" class="btn btn-sm" data-copy-link="${p.id}" title="Copy their personal link. It did not change."><i class="bi bi-link-45deg"></i>Copy link</button>
+                    </li>`)}
+                </ul>
+                <p class="muted">Personal links did not change: the same link now shows the new recipient.
+                    ${keepsOneChain ? 'The draw is still one chain through everyone.' : 'The draw now runs as two separate loops, which is fine: everyone still gives and gets one gift.'}</p>`,
+            onOpen: dialog => {
+                on(dialog, 'click', 'a[href]', () => dialog.close());
+                on(dialog, 'click', '[data-copy-link]', async (e, button) => {
+                    try {
+                        const { url } = await api(`/participants/${button.dataset.copyLink}/link`);
+                        if (url) await copyText(url, 'Personal link copied');
+                    } catch (err) {
+                        toast(err.message, 'error');
+                    }
+                });
+            },
+        });
+    };
 
     // A latecomer joins the existing chain: one Santa gives to them instead, and they take over that Santa's
     // old recipient. Nobody else changes, and the Santa's link stays the same.

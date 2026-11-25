@@ -3,6 +3,7 @@ import { html, mount, $, on } from '../lib/dom.js';
 import { pageHead, emptyState, selectOptions } from '../lib/ui.js';
 import { fmtDateTime, relTime } from '../lib/format.js';
 import { setQuery } from '../lib/router.js';
+import { auditSummary } from './shared.js';
 
 const PAGE_SIZE = 50;
 const AREAS = [
@@ -57,7 +58,7 @@ export async function render(view, { query }) {
                 ${items.map(item => html`<tr>
                     <td class="nowrap" title="${fmtDateTime(item.createdAt)}">${relTime(item.createdAt)}</td>
                     <td class="nowrap">${item.actorName}</td>
-                    <td>${item.entityType === 'participant' && item.entityId ? html`<a href="/admin/participants/${item.entityId}">${item.summary}</a>` : item.summary}</td>
+                    <td>${item.entityType === 'participant' && item.entityId ? html`<a href="/admin/participants/${item.entityId}">${auditSummary(item)}</a>` : auditSummary(item)}</td>
                     <td><code>${item.action}</code></td>
                 </tr>`)}</tbody></table>`
             : html`<table class="table"><thead><tr><th>When</th><th>Who</th><th>What</th><th>Device</th></tr></thead><tbody>

@@ -291,6 +291,34 @@ export class ParticipantsService {
         return { participant: await this.detail(groupId, id), warnings };
     }
 
+    /** Who this participant can be set to give to (see DrawService.reassign). */
+    public async assignOptions(groupId: number, id: number) {
+        return { recipients: await this.drawService.reassignOptions(groupId, id) };
+    }
+
+    /**
+     * Sets who this participant gives to in the existing draw. Returns everyone whose recipient changed (their
+     * new recipients stay hidden), with when they first opened their mission: those have to be told.
+     */
+    public async assignRecipient(actor: AuditActor, groupId: number, id: number, body: any) {
+        const recipientId = readOptionalId(body, 'recipientId');
+        if (!recipientId) {
+            throw new BadRequestException('Choose who they give to');
+        }
+        const activity = await this.analyticsService.participantActivity(groupId, await this.drawService.currentSeasonStart(groupId));
+        const openedAt = (userId: number) => activity.get(userId)?.firstReveal ?? null;
+        const opened = new Set([...activity.keys()].filter(userId => openedAt(userId)));
+        const { santa, recipient, changed, kind } = await this.drawService.reassign(actor, groupId, id, recipientId, opened);
+        return {
+            participant: await this.detail(groupId, id),
+            recipient: { id: recipient.id, name: recipient.name },
+            santaOpenedAt: openedAt(santa.id),
+            affected: changed.map(user => ({ id: user.id, name: user.name, openedAt: openedAt(user.id) }))
+                .sort((a, b) => Number(!b.openedAt) - Number(!a.openedAt) || a.name.localeCompare(b.name)),
+            keepsOneChain: kind === 'move',
+        };
+    }
+
     /** A participant of this group; one of another group is "not found", never revealed. */
     public async require(groupId: number, id: number): Promise<User> {
         const user = await this.userRepository.findOne({ where: { id, groupId } });

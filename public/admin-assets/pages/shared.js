@@ -30,11 +30,39 @@ export function auditItem(entry) {
     return html`<li>
         <span class="dot admin"><i class="bi bi-${AUDIT_ICONS[area] || 'pencil'}"></i></span>
         <div class="grow">
-            <div class="title">${entry.summary}</div>
+            <div class="title">${auditSummary(entry)}</div>
             <div class="meta" title="${fmtDateTime(entry.createdAt)}">${relTime(entry.createdAt)} · ${entry.actorName}</div>
         </div>
     </li>`;
 }
+
+/**
+ * An audit summary with its secret parts (who gives to whom, marked ||like this|| by the server) hidden
+ * until clicked. Entries written before the marking existed are recognised by their wording.
+ */
+export function auditSummary(entry) {
+    let summary = entry.summary || '';
+    if (entry.action === 'draw.insert' && !summary.includes('||')) {
+        summary = summary.replace(/^(Added .+? to the draw: )(.+)( now gives to them)$/, '$1||$2||$3');
+    }
+    return html`${summary.split('||').map((part, i) => (i % 2
+        ? html`<span class="secret" role="button" tabindex="0" data-secret="${part}" title="Click to show">hidden<i class="bi bi-eye"></i></span>`
+        : part))}`;
+}
+
+// Capture phase, so revealing a name inside a link (activity table) does not also follow the link.
+const toggleSecret = event => {
+    const chip = event.target.closest?.('.secret');
+    if (!chip || (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const shown = chip.classList.toggle('shown');
+    chip.textContent = shown ? chip.dataset.secret : 'hidden';
+    if (!shown) chip.insertAdjacentHTML('beforeend', '<i class="bi bi-eye"></i>');
+    chip.title = shown ? 'Click to hide' : 'Click to show';
+};
+document.addEventListener('click', toggleSecret, true);
+document.addEventListener('keydown', toggleSecret, true);
 
 function lowerFirst(text, apply) {
     return apply ? text.charAt(0).toLowerCase() + text.slice(1) : text;

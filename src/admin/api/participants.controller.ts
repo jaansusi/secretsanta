@@ -100,6 +100,19 @@ export class ParticipantsController {
         return this.participantsService.addToDraw(admin, groupId, id, body);
     }
 
+    /** Who this participant could be set to give to, for choosing their recipient by hand. */
+    @Get(':id/assign-options')
+    assignOptions(@CurrentGroupId() groupId: number, @Param('id', ParseIntPipe) id: number) {
+        return this.participantsService.assignOptions(groupId, id);
+    }
+
+    /** Sets who this participant gives to in the existing draw, re-wiring as few others as possible. */
+    @Post(':id/assign-recipient')
+    @HttpCode(200)
+    assignRecipient(@CurrentAdmin() admin: User, @CurrentGroupId() groupId: number, @Param('id', ParseIntPipe) id: number, @Body() body: any) {
+        return this.participantsService.assignRecipient(admin, groupId, id, body);
+    }
+
     /** Codename, mission brief and the facts list: everything text in the dossier. */
     @Put(':id/dossier')
     async saveDossier(@CurrentAdmin() admin: User, @CurrentGroupId() groupId: number, @Param('id', ParseIntPipe) id: number, @Body() body: any) {

@@ -8,6 +8,14 @@ export interface AuditActor {
     name: string;
 }
 
+/**
+ * Marks part of a summary as secret (who gives to whom): the panel shows it hidden until clicked.
+ * Stored as ||text||, so the raw table stays readable.
+ */
+export function secret(text: string): string {
+    return `||${text.replace(/\|/g, '')}||`;
+}
+
 export interface AuditEntry {
     /** The group the change was made in; null for shared content (Santa audio, agency facts, the groups). */
     groupId: number | null;
