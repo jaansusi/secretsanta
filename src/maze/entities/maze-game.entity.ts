@@ -1,5 +1,7 @@
-import { BelongsTo, Column, DataType, ForeignKey, Model, Table } from 'sequelize-typescript';
+import { BelongsTo, Column, DataType, ForeignKey, HasMany, Model, Table } from 'sequelize-typescript';
 import { User } from 'src/user/entities/user.entity';
+import type { MazeEndReason } from '../maze-events';
+import { MazeGameEvent } from './maze-game-event.entity';
 
 export type MazeGameStatus = 'playing' | 'finished';
 
@@ -58,6 +60,21 @@ export class MazeGame extends Model {
     /** Finished with the hidden cheat code (see MazeService.cheat) instead of reaching the door. Admin-only. */
     @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
     cheat: boolean;
+
+    /**
+     * How the game ended: solved, cheat, or restarted ("Alusta otsast" while it was open). Null while it
+     * is open, which for a game nobody touches any more means it was abandoned.
+     */
+    @Column({ type: DataType.STRING(16) })
+    endReason: MazeEndReason | null;
+
+    /** How it was steered: touch, mouse, pen, key, or mixed. From the event log; null for games before it. */
+    @Column({ type: DataType.STRING(8) })
+    input: string | null;
+
+    /** Everything that happened in the game, in order. */
+    @HasMany(() => MazeGameEvent, { foreignKey: 'gameId' })
+    events: MazeGameEvent[];
 
     /** Last saved activity (Sequelize timestamp). */
     declare updatedAt: Date;

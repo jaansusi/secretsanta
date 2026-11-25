@@ -12,6 +12,7 @@ export const EVENT_TYPES = {
     briefing_complete: 'Heard Santa to the end',
     briefing_replay: 'Replayed Santa',
     autoplay_blocked: 'Audio autoplay was blocked',
+    maze_open: 'Opened the maze',
     maze_start: 'Started a maze game',
     maze_complete: 'Finished a maze game',
     signup_view: 'Opened the sign-up link',
@@ -21,7 +22,7 @@ export const EVENT_TYPES = {
 export type EventType = keyof typeof EVENT_TYPES;
 
 /** Events the browser may report through POST /track. Everything else is recorded server-side only. */
-export const CLIENT_EVENT_TYPES: EventType[] = ['briefing_complete', 'briefing_replay', 'autoplay_blocked'];
+export const CLIENT_EVENT_TYPES: EventType[] = ['briefing_complete', 'briefing_replay', 'autoplay_blocked', 'maze_open'];
 
 /** Event types that count as someone visiting the site. */
 export const VISIT_TYPES: EventType[] = ['page_view', 'link_open'];

@@ -3,7 +3,10 @@ import { Request, Response } from 'express';
 import { SessionService } from 'src/auth/session.service';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { User } from 'src/user/entities/user.entity';
-import { MazeService } from './maze.service';
+import { EventLog, MazeService } from './maze.service';
+
+/** A save from the browser: the current path, the move counter, and the new part of the event log. */
+type SaveBody = { moves?: unknown; actions?: unknown } & EventLog;
 
 /**
  * The maze minigame's API (the game itself is a section of the main page, see views/partials/maze.hbs).
@@ -43,16 +46,16 @@ export class MazeController {
 
     @Post('api/games/:id/progress')
     @HttpCode(200)
-    async progress(@Req() request: Request, @Param('id', ParseIntPipe) id: number, @Body() body: { moves?: unknown; actions?: unknown }) {
+    async progress(@Req() request: Request, @Param('id', ParseIntPipe) id: number, @Body() body: SaveBody) {
         const user = await this.requireUser(request);
-        return this.mazeService.progress(user.id, id, body?.moves, body?.actions);
+        return this.mazeService.progress(user.id, id, body?.moves, body?.actions, body ?? {});
     }
 
     @Post('api/games/:id/finish')
     @HttpCode(200)
-    async finish(@Req() request: Request, @Param('id', ParseIntPipe) id: number, @Body() body: { moves?: unknown; actions?: unknown }) {
+    async finish(@Req() request: Request, @Param('id', ParseIntPipe) id: number, @Body() body: SaveBody) {
         const user = await this.requireUser(request);
-        const { attempt, improved } = await this.mazeService.finish(user.id, id, body?.moves, body?.actions);
+        const { attempt, improved } = await this.mazeService.finish(user.id, id, body?.moves, body?.actions, body ?? {});
         await this.analyticsService.track('maze_complete', request, {
             userId: user.id,
             meta: { gameId: id, moves: attempt.moves, par: attempt.par },
@@ -64,9 +67,9 @@ export class MazeController {
     /** The hidden cheat code; answers like finish so the page shows the usual win card. */
     @Post('api/games/:id/cheat')
     @HttpCode(200)
-    async cheat(@Req() request: Request, @Param('id', ParseIntPipe) id: number, @Body() body: { code?: unknown }) {
+    async cheat(@Req() request: Request, @Param('id', ParseIntPipe) id: number, @Body() body: { code?: unknown } & EventLog) {
         const user = await this.requireUser(request);
-        const { attempt, improved } = await this.mazeService.cheat(user.id, id, body?.code);
+        const { attempt, improved } = await this.mazeService.cheat(user.id, id, body?.code, body ?? {});
         await this.analyticsService.track('maze_complete', request, {
             userId: user.id,
             meta: { gameId: id, moves: attempt.moves, par: attempt.par, cheat: true },

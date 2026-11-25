@@ -6,6 +6,7 @@ const EVENT_ICONS = {
     page_view: 'eye', link_open: 'link-45deg', link_invalid: 'x-octagon', login_google: 'google', login_failed: 'person-x',
     reveal: 'envelope-open', reveal_error: 'exclamation-octagon', reveal_closed: 'lock', letter_view: 'envelope-paper',
     briefing_complete: 'soundwave', briefing_replay: 'arrow-repeat', autoplay_blocked: 'volume-mute',
+    maze_open: 'grid-3x3', maze_start: 'play', maze_complete: 'trophy',
 };
 const AUDIT_ICONS = { participant: 'person', family: 'house-heart', settings: 'gear', draw: 'shuffle', dossier: 'folder2-open', data: 'box-arrow-in-down', group: 'collection' };
 

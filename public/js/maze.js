@@ -11,7 +11,12 @@
     // Not shown anywhere: swiping up, up, down, down, left, right, left, right ends the game with 67 moves.
     const SECRET = 'UUDDLRLR';
     // The recorded game on the server: created on the first move, its path saved as the agent plays.
-    const record = { attempt: 0, gameId: null, actions: 0, starting: null, timer: null, synced: '' };
+    // `log` holds the events not yet saved (each numbered by `seq`); `away` is set while the agent has
+    // left the maze mid-game, so coming back is logged once.
+    const record = { attempt: 0, gameId: null, actions: 0, starting: null, timer: null, synced: '', log: [], seq: 0, away: false };
+    const MAX_LOG = 2000;              // unsaved events kept (offline for a long time: the oldest go)
+    const LOG_BATCH = 300;             // events per save (keeps a closing page's save small)
+    const FINISH_BATCH = 500;          // events a finish may carry (the server's limit per save)
     let parts = null;                  // SVG elements of the current level
 
     // ---- server --------------------------------------------------------------------------------
@@ -38,45 +43,83 @@
 
     const progressKey = id => 'maze-progress-' + id;
     function saveProgress() {
-        const value = JSON.stringify({ gameId: record.gameId, moves: game.moves, actions: record.actions });
+        const value = JSON.stringify({ gameId: record.gameId, moves: game.moves, actions: record.actions, log: record.log, seq: record.seq });
         try { localStorage.setItem(progressKey(game.level.id), value); } catch (e) { /* no storage */ }
     }
     function clearProgress(id) {
         try { localStorage.removeItem(progressKey(id)); } catch (e) { /* no storage */ }
     }
-    /** { gameId, moves, actions } of an unfinished game in this browser (gameId null if never saved). */
+    /**
+     * { gameId, moves, actions, log, seq } of an unfinished game in this browser (gameId null if never
+     * saved; log: its events not yet saved, seq: the next event number).
+     */
     function loadProgress(id) {
         let raw = '';
-        try { raw = localStorage.getItem(progressKey(id)) || ''; } catch (e) { return { gameId: null, moves: '', actions: 0 }; }
+        try { raw = localStorage.getItem(progressKey(id)) || ''; } catch (e) { return { gameId: null, moves: '', actions: 0, log: [], seq: 0 }; }
         try {
             const saved = JSON.parse(raw);
             if (saved && typeof saved.moves === 'string') {
-                return { gameId: Number.isInteger(saved.gameId) ? saved.gameId : null, moves: saved.moves, actions: saved.actions | 0 };
+                const log = Array.isArray(saved.log) ? saved.log.filter(e => e && Number.isInteger(e.seq)) : [];
+                const seq = Math.max(saved.seq | 0, ...log.map(e => e.seq + 1));
+                return { gameId: Number.isInteger(saved.gameId) ? saved.gameId : null, moves: saved.moves, actions: saved.actions | 0, log, seq };
             }
         } catch (e) { /* an older plain move string */ }
-        return { gameId: null, moves: /^[UDLR]*$/.test(raw) ? raw : '', actions: raw.length };
+        return { gameId: null, moves: /^[UDLR]*$/.test(raw) ? raw : '', actions: raw.length, log: [], seq: 0 };
     }
 
     // ---- recording games on the server ---------------------------------------------------------
 
-    /** The server id of the current game, creating the game on first use. */
+    /**
+     * The server id of the current game, creating the game on first use. The promise gives the id even
+     * if a restart came in between, so the old attempt's last save still reaches its game.
+     */
     function ensureGame() {
         if (record.gameId) return Promise.resolve(record.gameId);
         if (record.starting) return record.starting;
         const attempt = record.attempt;
-        const levelId = game.level.id;
-        record.starting = api('games', { level: levelId }).then(response => {
+        const starting = api('games', { level: game.level.id }).then(response => response.gameId);
+        record.starting = starting;
+        starting.then(gameId => {
             // A restart or level switch while this was in flight: that attempt has its own game.
-            if (attempt !== record.attempt) return null;
-            record.gameId = response.gameId;
+            if (attempt !== record.attempt) return;
+            record.gameId = gameId;
             record.starting = null;
             saveProgress();
-            return record.gameId;
-        }).catch(err => {
+        }, () => {
             if (attempt === record.attempt) record.starting = null;
-            throw err;
         });
-        return record.starting;
+        return starting;
+    }
+
+    /**
+     * Adds an event to the game's log: `type` with its details (dir, input, reason) and where the bauble
+     * and the maze are now. Saved with the next save; nothing is logged once the game is over.
+     */
+    function note(type, details) {
+        if (game.solved || !game.state) return;
+        const s = game.state;
+        record.log.push(Object.assign({ seq: record.seq++, type, at: Date.now(), ball: [s.bx, s.by], maze: [s.ox, s.oy] }, details));
+        if (record.log.length > MAX_LOG) record.log.splice(0, record.log.length - MAX_LOG);
+    }
+
+    /**
+     * The events for the next save, with this browser's clock so the server can line their times up.
+     * A finish sends the newest `limit` (it is the game's last save); other saves the oldest, in order.
+     */
+    function logPart(limit) {
+        return { events: limit ? record.log.slice(-limit) : record.log.slice(0, LOG_BATCH), now: Date.now() };
+    }
+
+    /** Drops events the server has stored, once a save with them went through. */
+    function logSaved(events) {
+        if (!events.length) return;
+        const last = events[events.length - 1].seq;
+        record.log = record.log.filter(e => e.seq > last);
+    }
+
+    /** True while a game is under way: moves have been made and it is not over. */
+    function playing() {
+        return !game.solved && !!(record.gameId || record.starting || game.moves);
     }
 
     /** Saves the current path soon (moves come in bursts; one save covers them). */
@@ -85,26 +128,46 @@
         record.timer = setTimeout(() => syncNow(), 800);
     }
 
-    /** Saves the current path now, if anything changed since the last save. Never interrupts play. */
+    /**
+     * Saves the current path and new events now, if anything changed since the last save. Never
+     * interrupts play. A game still being created is saved once it exists.
+     */
     function syncNow({ keepalive = false } = {}) {
         clearTimeout(record.timer);
-        if (!record.gameId || game.solved) return Promise.resolve();
-        const snapshot = { moves: game.moves, actions: record.actions };
-        const key = snapshot.moves + '|' + snapshot.actions;
-        if (record.synced === key) return Promise.resolve();
-        return api('games/' + record.gameId + '/progress', snapshot, { keepalive })
-            .then(() => { record.synced = key; })
+        if (game.solved) return Promise.resolve();
+        const target = record.gameId ? Promise.resolve(record.gameId) : record.starting;
+        if (!target) return Promise.resolve();
+        const attempt = record.attempt;
+        const body = Object.assign({ moves: game.moves, actions: record.actions }, logPart());
+        const key = body.moves + '|' + body.actions;
+        if (record.synced === key && !body.events.length) return Promise.resolve();
+        return target
+            .then(gameId => api('games/' + gameId + '/progress', body, { keepalive }))
+            .then(() => {
+                if (attempt !== record.attempt) return;
+                record.synced = key;
+                logSaved(body.events);
+                saveProgress();
+                if (record.log.length) scheduleSync();
+            })
             .catch(() => { /* the next move or page close tries again */ });
     }
 
-    /** Starts recording a fresh attempt: the previous game (if any) keeps its last saved state. */
-    function newAttempt(saved) {
+    /**
+     * Starts recording a fresh attempt: the previous game (if any) keeps its last saved state. `ending`
+     * is logged on the previous game first, e.g. { type: 'restart', input: 'button' }.
+     */
+    function newAttempt(saved, ending) {
+        if (ending && playing()) note(ending.type, { input: ending.input });
         syncNow();
         record.attempt++;
         record.gameId = saved ? saved.gameId : null;
         record.actions = saved ? Math.max(saved.actions, saved.moves.length) : 0;
         record.starting = null;
         record.synced = '';
+        record.log = saved ? saved.log : [];
+        record.seq = saved ? saved.seq : 0;
+        record.away = false;
     }
 
     // ---- helpers -------------------------------------------------------------------------------
@@ -263,10 +326,10 @@
 
     // ---- game flow -----------------------------------------------------------------------------
 
-    function openLevel(index, { resume = true } = {}) {
+    function openLevel(index, { resume = true, ending = null } = {}) {
         const def = data.levels[index];
         const saved = resume ? loadProgress(def.id) : null;
-        newAttempt(saved && saved.moves ? saved : null);
+        newAttempt(saved && (saved.moves || saved.gameId) ? saved : null, ending);
         game.index = index;
         game.level = Object.assign(Engine.parseLevel(def), { par: def.par });
         game.state = game.level.start;
@@ -289,18 +352,27 @@
         renderLevels();
         renderStatus();
         if (game.moves.length) setHint('Jätkad pooleli jäänud katset.');
+        if (saved && (saved.moves || saved.gameId)) {
+            note('resume');
+            saveProgress();
+        }
     }
 
-    function move(direction) {
+    /** One move; `input` is how it was made (touch, mouse, pen or key), for the event log. */
+    function move(direction, input) {
         if (game.solved || game.submitting) return;
         // Every swipe counts here, including impossible ones: the sequence is rarely a playable path.
         game.inputs = (game.inputs + direction).slice(-SECRET.length);
         if (game.inputs === SECRET) {
-            end(gameId => api('games/' + gameId + '/cheat', { code: SECRET }));
+            note('cheat', { dir: direction, input });
+            end(gameId => api('games/' + gameId + '/cheat', Object.assign({ code: SECRET }, logPart(FINISH_BATCH))));
             return;
         }
         const result = Engine.step(game.level, game.state, direction);
         if (result.blocked) {
+            note('blocked', { dir: direction, input, reason: result.blocked });
+            saveProgress();
+            if (record.gameId) scheduleSync();
             shake();
             setHint(result.blocked === 'edge' ? 'Labürint ei mahu sinna.' : 'Kera ei saa lauast välja lükata.');
             return;
@@ -309,22 +381,27 @@
         game.state = result.state;
         game.moves += direction;
         record.actions++;
+        note('move', { dir: direction, input });
         setHint('');
         place(true);
         renderStatus();
         if (Engine.solved(game.level, game.state)) {
+            note('solve');
             const finished = { moves: game.moves, actions: record.actions };
-            end(gameId => api('games/' + gameId + '/finish', finished));
+            end(gameId => api('games/' + gameId + '/finish', Object.assign({}, finished, logPart(FINISH_BATCH))));
         } else {
             saveProgress();
             ensureGame().then(scheduleSync).catch(() => { /* retried on the next move */ });
         }
     }
 
-    function undo() {
+    /** Takes back the last move; `input` is key or button. */
+    function undo(input) {
         if (!game.history.length || game.solved) return;
+        const undone = game.moves.slice(-1);
         game.state = game.history.pop();
         game.moves = game.moves.slice(0, -1);
+        note('undo', { dir: undone, input });
         place(true);
         saveProgress();
         if (record.gameId) scheduleSync();
@@ -334,7 +411,7 @@
 
     function restart() {
         clearProgress(game.level.id);
-        openLevel(game.index, { resume: false });
+        openLevel(game.index, { resume: false, ending: { type: 'restart', input: 'button' } });
     }
 
     /** Ends the game: `submit(gameId)` records it on the server; its answer fills the win card. */
@@ -342,6 +419,7 @@
         game.solved = true;
         game.submitting = true;
         const level = game.level;
+        const attempt = record.attempt;
         clearProgress(level.id);
         clearTimeout(record.timer);
         renderStatus();
@@ -349,6 +427,7 @@
             if (!gameId) throw new Error('Mängu ei õnnestunud alustada.');
             return submit(gameId);
         }).then(response => {
+            if (attempt === record.attempt) record.log = [];   // the finish carried them
             data.results = response.results;
             data.board = response.board;
             const best = data.results[level.id];
@@ -392,7 +471,7 @@
         let swipe = null;
         target.addEventListener('pointerdown', event => {
             if (event.pointerType === 'mouse' && event.button !== 0) return;
-            swipe = { id: event.pointerId, x: event.clientX, y: event.clientY, t: performance.now(), moved: false };
+            swipe = { id: event.pointerId, x: event.clientX, y: event.clientY, t: performance.now(), moved: false, input: event.pointerType || 'touch' };
             try { target.setPointerCapture(event.pointerId); } catch (e) { /* not supported */ }
         });
         target.addEventListener('pointermove', event => {
@@ -401,7 +480,7 @@
             const dy = event.clientY - swipe.y;
             if (Math.max(Math.abs(dx), Math.abs(dy)) >= DISTANCE) {
                 swipe.moved = true;
-                move(direction(dx, dy));
+                move(direction(dx, dy), swipe.input);
             }
         });
         const end = event => {
@@ -412,7 +491,7 @@
             const dx = event.clientX - done.x;
             const dy = event.clientY - done.y;
             if (Math.max(Math.abs(dx), Math.abs(dy)) >= FLICK_DISTANCE && performance.now() - done.t <= FLICK_MS) {
-                move(direction(dx, dy));
+                move(direction(dx, dy), done.input);
             }
         };
         target.addEventListener('pointerup', end);
@@ -430,10 +509,15 @@
         started = true;
         bindSwipe($('board'));
         document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'hidden') syncNow({ keepalive: true });
+            if (document.visibilityState === 'hidden') {
+                if (visible) leave('tab');
+                syncNow({ keepalive: true });
+            } else if (visible) {
+                comeBack('tab');
+            }
         });
         window.addEventListener('pagehide', () => syncNow({ keepalive: true }));
-        $('undoButton').addEventListener('click', undo);
+        $('undoButton').addEventListener('click', () => undo('button'));
         $('restartButton').addEventListener('click', restart);
         $('retryButton').addEventListener('click', restart);
         $('nextButton').addEventListener('click', () => openLevel(Math.min(game.index + 1, data.levels.length - 1)));
@@ -447,9 +531,9 @@
             const direction = KEYS[event.key];
             if (direction) {
                 event.preventDefault();
-                move(direction);
+                move(direction, 'key');
             } else if (event.key === 'z' || event.key === 'Backspace') {
-                undo();
+                undo('key');
             }
         });
 
@@ -474,13 +558,35 @@
         }).catch(() => { /* the scoreboard from last time stays */ });
     }
 
+    /** Logs the agent leaving a game under way: `reason` is tab (the page was hidden) or view (back to the dossier). */
+    function leave(reason) {
+        if (record.away || !playing()) return;
+        note('away', { reason });
+        record.away = true;
+        saveProgress();
+    }
+
+    function comeBack(reason) {
+        if (!record.away) return;
+        record.away = false;
+        note('back', { reason });
+        saveProgress();
+    }
+
     window.MazeView = {
         show() {
             visible = true;
-            if (started) refresh(); else start();
+            if (typeof trackEvent === 'function') trackEvent('maze_open');
+            if (started) {
+                comeBack('view');
+                refresh();
+            } else {
+                start();
+            }
         },
         /** Called when the dossier comes back: saves the current game's progress straight away. */
         hide() {
+            leave('view');
             visible = false;
             syncNow({ keepalive: true });
         },

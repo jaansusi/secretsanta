@@ -107,14 +107,16 @@ export async function render(view) {
                 ${maze.recent.length ? html`
                     <h3 class="section-title">Recent games</h3>
                     <div class="table-wrap"><table class="table">
-                        <thead><tr><th>Last move</th><th>Who</th><th>Status</th><th class="num">Moves</th><th class="num">Incl. undone</th><th class="num">Time</th></tr></thead>
+                        <thead><tr><th>Last move</th><th>Who</th><th>Status</th><th class="num">Moves</th><th class="num">Incl. undone</th><th class="num">Time</th><th>Input</th></tr></thead>
                         <tbody>${maze.recent.map(game => html`<tr>
                             <td class="nowrap" title="Started ${fmtDateTime(game.startedAt)}">${relTime(game.updatedAt)}</td>
                             <td class="nowrap">${game.name}</td>
-                            <td class="nowrap">${game.status === 'finished' ? html`<span class="badge badge-good">Finished</span>` : html`<span class="badge">Unfinished</span>`}${game.cheat ? html` <span class="badge badge-warn">cheat code</span>` : ''}</td>
+                            <td class="nowrap">${game.status === 'finished' ? html`<span class="badge badge-good">Finished</span>`
+                                : game.endReason === 'restarted' ? html`<span class="badge">Restarted</span>` : html`<span class="badge">Unfinished</span>`}${game.cheat ? html` <span class="badge badge-warn">cheat code</span>` : ''}</td>
                             <td class="num">${game.moves}</td>
                             <td class="num">${game.actions}</td>
                             <td class="num">${game.durationMs !== null ? fmtDuration(game.durationMs) : html`<span class="muted">–</span>`}</td>
+                            <td class="nowrap">${game.input ?? html`<span class="muted">–</span>`}</td>
                         </tr>`)}</tbody>
                     </table></div>` : ''}
                 <div><button type="button" class="btn btn-danger" id="mazeReset" ${maze.games ? '' : 'disabled'}><i class="bi bi-trash"></i>Reset scoreboard</button></div>`);

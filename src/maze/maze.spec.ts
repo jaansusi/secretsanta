@@ -1,6 +1,7 @@
 import { MazeEngine, LevelDefinition } from './maze-engine';
 import { LEVELS } from './levels';
 import { rankBoard, BestResult, summarizeGames, GameRow } from './maze-board';
+import { MAX_EVENTS_PER_SAVE, readEvents, steeringInput } from './maze-events';
 
 // A 3x3 box in a 5x5 world: one wall on the right edge of the middle cell, one on the bottom edge of
 // the top-middle cell.
@@ -157,5 +158,44 @@ describe('summarizeGames', () => {
     it('keeps the first finish time when a later game improves the result', () => {
         const { best } = summarizeGames([g(1, 'finished', 70, 1), g(1, 'finished', 44, 9)], starsFor);
         expect(best[0]).toMatchObject({ moves: 44, stars: 3, completedAt: t(9), firstCompletedAt: t(1) });
+    });
+});
+
+describe('maze event log', () => {
+    const now = 1_800_000_000_000;
+
+    it('reads events and moves their times onto the server clock', () => {
+        // The browser's clock is 5 s behind the server's.
+        const rows = readEvents([
+            { seq: 0, type: 'move', dir: 'U', input: 'touch', at: now - 5000 - 1000, ball: [1, 2], maze: [0, 1] },
+            { seq: 1, type: 'blocked', dir: 'L', input: 'touch', reason: 'edge', at: now - 5000 - 500 },
+        ], now - 5000, now);
+        expect(rows).toEqual([
+            { seq: 0, type: 'move', dir: 'U', input: 'touch', reason: null, ballX: 1, ballY: 2, mazeX: 0, mazeY: 1, at: new Date(now - 1000) },
+            { seq: 1, type: 'blocked', dir: 'L', input: 'touch', reason: 'edge', ballX: null, ballY: null, mazeX: null, mazeY: null, at: new Date(now - 500) },
+        ]);
+    });
+
+    it('drops events that make no sense instead of failing the save', () => {
+        const rows = readEvents([
+            { seq: 0, type: 'teleport', at: now },
+            { seq: -1, type: 'move', at: now },
+            'move',
+            { seq: 1, type: 'move', dir: 'X', input: 'telepathy', reason: 'edge', ball: [1], at: now + 99_999 },
+            { seq: 1, type: 'undo', at: now },   // same number twice: the first one counts
+        ], now, now);
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toMatchObject({ seq: 1, type: 'move', dir: null, input: null, reason: null, ballX: null, at: new Date(now) });
+        expect(readEvents(undefined, undefined, now)).toEqual([]);
+        expect(readEvents(Array.from({ length: 900 }, (_, seq) => ({ seq, type: 'move', at: now })), now, now)).toHaveLength(MAX_EVENTS_PER_SAVE);
+    });
+
+    it('sums up how a game was steered', () => {
+        const rows = (inputs: string[]) => readEvents(inputs.map((input, seq) => ({ seq, type: seq % 2 ? 'blocked' : 'move', input, at: now })), now, now);
+        expect(steeringInput(null, rows(['touch', 'touch']))).toBe('touch');
+        expect(steeringInput('touch', rows(['key']))).toBe('mixed');
+        expect(steeringInput(null, [])).toBeNull();
+        // Undo buttons do not say how the bauble was moved.
+        expect(steeringInput(null, readEvents([{ seq: 0, type: 'undo', input: 'button', at: now }], now, now))).toBeNull();
     });
 });

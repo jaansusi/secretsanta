@@ -2,6 +2,8 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { InjectModel } from '@nestjs/sequelize';
 import { User } from 'src/user/entities/user.entity';
 import { MazeGame } from './entities/maze-game.entity';
+import { MazeGameEvent } from './entities/maze-game-event.entity';
+import { MazeEventRow, readEvents, steeringInput } from './maze-events';
 import { MazeEngine } from './maze-engine';
 import { LEVELS, Level, levelById } from './levels';
 import { rankBoard, summarizeGames, GameRow } from './maze-board';
@@ -16,6 +18,12 @@ const MAX_ACTIONS = 100_000;
  */
 const CHEAT_CODE = 'UUDDLRLR';
 const CHEAT_MOVES = 67;
+
+/** The event log part of a save, as the browser sends it: events, and its clock at sending time. */
+export interface EventLog {
+    events?: unknown;
+    now?: unknown;
+}
 
 export interface LevelResult {
     moves: number;
@@ -47,6 +55,8 @@ export class MazeService {
     constructor(
         @InjectModel(MazeGame)
         private readonly games: typeof MazeGame,
+        @InjectModel(MazeGameEvent)
+        private readonly events: typeof MazeGameEvent,
         @InjectModel(User)
         private readonly users: typeof User,
     ) { }
@@ -63,8 +73,11 @@ export class MazeService {
         return { gameId: game.id };
     }
 
-    /** Saves the current path of an unfinished game. The path must be playable and not yet at the door. */
-    public async progress(userId: number, gameId: number, moves: unknown, actions: unknown): Promise<{ ok: true }> {
+    /**
+     * Saves the current path of an unfinished game, and appends the events that came with it (a "restart"
+     * event ends the game as restarted). The path must be playable and not yet at the door.
+     */
+    public async progress(userId: number, gameId: number, moves: unknown, actions: unknown, log: EventLog = {}): Promise<{ ok: true }> {
         const game = await this.requireGame(userId, gameId);
         const level = this.requireLevel(game.level);
         const path = readMoves(moves, true);
@@ -73,12 +86,18 @@ export class MazeService {
             // Not playable, or already at the door: finishing goes through finish().
             throw new BadRequestException('Vigased käigud.');
         }
-        await game.update({ moves: path, moveCount: path.length, actions: readActions(actions, game.actions, path.length) });
+        const events = readEvents(log.events, log.now, Date.now());
+        await this.save(game, events, {
+            moves: path,
+            moveCount: path.length,
+            actions: readActions(actions, game.actions, path.length),
+            ...(events.some(event => event.type === 'restart') ? { endReason: 'restarted' } : {}),
+        });
         return { ok: true };
     }
 
     /** Finishes a game after replaying its moves; returns this game's result and whether it beat the agent's best. */
-    public async finish(userId: number, gameId: number, moves: unknown, actions: unknown) {
+    public async finish(userId: number, gameId: number, moves: unknown, actions: unknown, log: EventLog = {}) {
         const game = await this.requireGame(userId, gameId);
         const level = this.requireLevel(game.level);
         const path = readMoves(moves, false);
@@ -87,13 +106,14 @@ export class MazeService {
         }
         const previousBest = (await this.myResults(userId))[level.definition.id];
         const finishedAt = new Date();
-        await game.update({
+        await this.save(game, readEvents(log.events, log.now, finishedAt.getTime()), {
             moves: path,
             moveCount: path.length,
             actions: readActions(actions, game.actions, path.length),
             status: 'finished',
             finishedAt,
             durationMs: finishedAt.getTime() - new Date(game.startedAt).getTime(),
+            endReason: 'solved',
         });
         const attempt: LevelResult = { moves: path.length, par: level.par, stars: MazeEngine.stars(path.length, level.par) };
         return { attempt, improved: !previousBest || path.length < previousBest.moves };
@@ -101,9 +121,10 @@ export class MazeService {
 
     /**
      * Finishes a game through the hidden cheat code: recorded as finished with CHEAT_MOVES moves
-     * (timed like any game) and flagged `cheat`. Returns the same shape as finish().
+     * (timed like any game) and flagged `cheat`. `moves` keeps the path the agent had actually made, and
+     * the events say what happened up to the code. Returns the same shape as finish().
      */
-    public async cheat(userId: number, gameId: number, code: unknown) {
+    public async cheat(userId: number, gameId: number, code: unknown, log: EventLog = {}) {
         if (code !== CHEAT_CODE) {
             throw new BadRequestException('Vigane päring.');
         }
@@ -111,13 +132,14 @@ export class MazeService {
         const level = this.requireLevel(game.level);
         const previousBest = (await this.myResults(userId))[level.definition.id];
         const finishedAt = new Date();
-        await game.update({
+        await this.save(game, readEvents(log.events, log.now, finishedAt.getTime()), {
             moveCount: CHEAT_MOVES,
             actions: Math.max(game.actions, CHEAT_MOVES),
             status: 'finished',
             finishedAt,
             durationMs: finishedAt.getTime() - new Date(game.startedAt).getTime(),
             cheat: true,
+            endReason: 'cheat',
         });
         const attempt: LevelResult = { moves: CHEAT_MOVES, par: level.par, stars: MazeEngine.stars(CHEAT_MOVES, level.par) };
         return { attempt, improved: !previousBest || CHEAT_MOVES < previousBest.moves };
@@ -202,6 +224,8 @@ export class MazeService {
                 finishedAt: game.finishedAt,
                 durationMs: game.durationMs,
                 cheat: game.cheat,
+                endReason: game.endReason,
+                input: game.input,
             })),
         };
     }
@@ -209,6 +233,20 @@ export class MazeService {
     /** Admin: wipes every game of one group, e.g. after testing. */
     public async reset(groupId: number): Promise<number> {
         return this.games.destroy({ where: { userId: await this.memberIds(groupId) } });
+    }
+
+    /**
+     * Updates the game and appends its new events in one transaction. Events already stored (a save sent
+     * twice, e.g. once more as the page closed) are skipped by their number.
+     */
+    private async save(game: MazeGame, events: MazeEventRow[], changes: Partial<MazeGame>): Promise<void> {
+        await this.games.sequelize!.transaction(async transaction => {
+            if (events.length) {
+                await this.events.bulkCreate(events.map(event => ({ ...event, gameId: game.id })), { ignoreDuplicates: true, transaction });
+            }
+            const input = steeringInput(game.input, events);
+            await game.update({ ...changes, ...(input !== game.input ? { input } : {}) }, { transaction });
+        });
     }
 
     private async memberIds(groupId: number): Promise<number[]> {

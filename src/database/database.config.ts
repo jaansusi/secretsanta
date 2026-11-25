@@ -3,6 +3,7 @@ import { SequelizeModuleAsyncOptions } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { WinstonLoggerService } from '../logger/logger.service';
 import { migrateToGroups } from './group-migration';
+import { migrateMaze } from './maze-migration';
 
 const logger = new WinstonLoggerService();
 
@@ -18,9 +19,10 @@ export const dataBaseConfig: SequelizeModuleAsyncOptions = {
     autoLoadModels: true,
     synchronize: true,
     hooks: {
-      // sync() never adds columns to existing tables: the group columns are added here, before it runs.
+      // sync() never adds columns to existing tables: new columns are added here, before it runs.
       async beforeBulkSync(this: Sequelize) {
         await migrateToGroups(this);
+        await migrateMaze(this);
       },
     },
     // TLS to the database when DB_SSL=true (verify-full against the system CA store,
