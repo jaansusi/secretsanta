@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { col, fn, Op, where } from 'sequelize';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
+import { newAgentNames } from './agent-names';
 
 /** Decryption codes are 26+ random characters; anything shorter is never a valid code. */
 const MIN_CODE_LENGTH = 16;
@@ -101,5 +102,39 @@ export class UserService {
 
     public cleanGmailAddress(email: string) {
         return cleanGmailAddress(email);
+    }
+
+    async getByIds(ids: number[]) {
+        return ids.length ? this.userRepository.findAll({ where: { id: ids } }) : [];
+    }
+
+    /**
+     * Every participant's agent name in one group (see agent-names.ts), by user id. Participants without
+     * one get a new, unique one here, so a name exists from the first time anyone needs it.
+     */
+    async agentNames(groupId: number): Promise<Map<number, string>> {
+        const read = (rows: User[]) => new Map(rows.map(row => [row.id, row.agentName ?? '']));
+        const users = await this.userRepository.findAll({ where: { groupId }, attributes: ['id', 'agentName'] });
+        if (users.every(user => user.agentName)) {
+            return read(users);
+        }
+        // Rows locked, so two requests at once cannot hand out the same name.
+        return this.userRepository.sequelize!.transaction(async transaction => {
+            const locked = await this.userRepository.findAll({
+                where: { groupId }, attributes: ['id', 'agentName'], order: [['id', 'ASC']], lock: transaction.LOCK.UPDATE, transaction,
+            });
+            const missing = locked.filter(user => !user.agentName);
+            const names = newAgentNames(locked.flatMap(user => user.agentName ? [user.agentName] : []), missing.length);
+            for (const [i, user] of missing.entries()) {
+                await this.userRepository.update({ agentName: names[i] }, { where: { id: user.id }, transaction });
+                user.agentName = names[i];
+            }
+            return read(locked);
+        });
+    }
+
+    /** One participant's agent name, giving one out if they have none yet. */
+    async agentName(user: Pick<User, 'id' | 'groupId' | 'agentName'>): Promise<string> {
+        return user.agentName || (await this.agentNames(user.groupId)).get(user.id) || '';
     }
 }

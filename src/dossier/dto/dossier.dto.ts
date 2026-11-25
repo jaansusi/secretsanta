@@ -1,13 +1,13 @@
 
 /** Text fields editable by the admin. */
 export class SaveDossierDto {
-    codename?: string;
     missionBrief?: string;
 }
 
 /** Dossier metadata without the binary assets. */
 export class DossierSummaryDto {
     userId: number;
+    /** The participant's codename: their agent name (user.agentName), the one name used everywhere. */
     codename: string;
     missionBrief: string;
     hasPhoto: boolean;

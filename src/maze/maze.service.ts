@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { User } from 'src/user/entities/user.entity';
+import { UserService } from 'src/user/user.service';
 import { MazeGame } from './entities/maze-game.entity';
 import { MazeGameEvent } from './entities/maze-game-event.entity';
 import { MazeEventRow, readEvents, steeringInput } from './maze-events';
@@ -45,10 +46,13 @@ export interface BoardDetails {
 
 export interface BoardView {
     levelCount: number;
-    /** Agents who have finished at least one level, ranked. Participants get rank, name and moves only. */
-    rows: ({ rank: number; name: string; levelsDone: number; totalMoves: number; me: boolean; first: boolean } & Partial<BoardDetails>)[];
+    /**
+     * Agents who have finished at least one level, ranked. Participants get rank, agent name and moves
+     * only: `name` is the agent name for them, and the real name (with `agentName` beside it) for the admin.
+     */
+    rows: ({ rank: number; name: string; agentName?: string; levelsDone: number; totalMoves: number; me: boolean; first: boolean } & Partial<BoardDetails>)[];
     /** Agents who have played but not finished anything yet (counts for the admin panel only). */
-    unfinished: { name: string; me: boolean; games?: number; latestMoves?: number | null }[];
+    unfinished: { name: string; agentName?: string; me: boolean; games?: number; latestMoves?: number | null }[];
 }
 
 @Injectable()
@@ -60,6 +64,7 @@ export class MazeService {
         private readonly events: typeof MazeGameEvent,
         @InjectModel(User)
         private readonly users: typeof User,
+        private readonly userService: UserService,
     ) { }
 
     /** Level data for the page: the definition the browser plays, plus the target move count. */
@@ -103,7 +108,7 @@ export class MazeService {
         const level = this.requireLevel(game.level);
         const path = readMoves(moves, false);
         if (!MazeEngine.replay(level.parsed, path).ok) {
-            throw new BadRequestException('See lahendus ei vii jõulukera ukseni.');
+            throw new BadRequestException('See lahendus ei vii jõuluvana korstnasse.');
         }
         const previousBest = (await this.myResults(userId))[level.definition.id];
         const finishedAt = new Date();
@@ -159,8 +164,9 @@ export class MazeService {
     }
 
     /**
-     * One group's scoreboard. Participants see rank, name and best moves; `detailed` (admin panel only) adds
-     * stars, games played and finished, and the progress of agents who have not finished yet.
+     * One group's scoreboard. Participants see rank, agent name and best moves, never real names;
+     * `detailed` (admin panel only) shows real names with agent names beside them, and adds stars, games
+     * played and finished, and the progress of agents who have not finished yet.
      */
     public async board(groupId: number, viewerId: number | null, { detailed = false } = {}): Promise<BoardView> {
         const rows = await this.games.findAll({
@@ -169,13 +175,20 @@ export class MazeService {
         });
         const { best, stats } = summarizeGames(rows.map(toGameRow), starsFor);
         const ranked = rankBoard(best, LEVELS.length);
-        const names = await this.names([...stats.keys()]);
+        const [realNames, agentNames] = await Promise.all([
+            detailed ? this.names([...stats.keys()]) : new Map<number, string>(),
+            this.userService.agentNames(groupId),
+        ]);
+        const who = (userId: number) => ({
+            name: (detailed ? realNames : agentNames).get(userId) || '?',
+            ...(detailed ? { agentName: agentNames.get(userId) ?? '' } : {}),
+        });
         const ranks = new Set(ranked.rows.map(row => row.userId));
         return {
             levelCount: LEVELS.length,
             rows: ranked.rows.map(row => ({
                 rank: row.rank,
-                name: names.get(row.userId) ?? '?',
+                ...who(row.userId),
                 levelsDone: row.levelsDone,
                 totalMoves: row.totalMoves,
                 me: row.userId === viewerId,
@@ -192,7 +205,7 @@ export class MazeService {
                 .filter(([userId]) => !ranks.has(userId))
                 .sort(([, a], [, b]) => b.lastPlayedAt.getTime() - a.lastPlayedAt.getTime())
                 .map(([userId, s]) => ({
-                    name: names.get(userId) ?? '?',
+                    ...who(userId),
                     me: userId === viewerId,
                     ...(detailed ? { games: s.games, latestMoves: s.latestUnfinishedMoves } : {}),
                 })),
@@ -238,6 +251,7 @@ export class MazeService {
      * levels and the group's participants: the raw material for a report. Holds no gift data.
      */
     public async exportData(groupId: number) {
+        const agentNames = await this.userService.agentNames(groupId);
         const participants = await this.users.findAll({ where: { groupId }, attributes: ['id', 'name', 'isAdmin'], order: [['name', 'ASC']] });
         const names = new Map(participants.map(user => [user.id, user.name]));
         const games = await this.games.findAll({ where: { userId: participants.map(user => user.id) }, order: [['startedAt', 'ASC'], ['id', 'ASC']] });
@@ -250,7 +264,7 @@ export class MazeService {
         }
         return {
             levels: LEVELS.map(level => ({ ...level.definition, par: level.par })),
-            participants: participants.map(user => ({ id: user.id, name: user.name, isAdmin: user.isAdmin })),
+            participants: participants.map(user => ({ id: user.id, name: user.name, agentName: agentNames.get(user.id) ?? '', isAdmin: user.isAdmin })),
             games: games.map(game => {
                 const level = levelById(game.level);
                 const finished = game.status === 'finished';
@@ -258,6 +272,7 @@ export class MazeService {
                     id: game.id,
                     userId: game.userId,
                     name: names.get(game.userId) ?? '?',
+                    agentName: agentNames.get(game.userId) ?? '',
                     level: game.level,
                     status: game.status,
                     endReason: game.endReason,

@@ -119,6 +119,14 @@
 }
 
 /* ---------- Play area ---------- */
+.maze-title {
+    text-align: center;
+}
+
+.paper h2.maze-title {
+    margin-bottom: 0.4rem;
+}
+
 .maze-status {
     display: flex;
     justify-content: flex-end;
@@ -172,30 +180,63 @@
     stroke-linecap: round;
 }
 
-.board .door-leaf {
-    fill: #8a1c14;
-    stroke: #5e0d0c;
+/* The chimney (target cell). */
+.board .chimney-brick {
+    fill: #b5452f;
+    stroke: #6e2418;
     stroke-width: 1.5;
 }
 
-.board .door-knob {
-    fill: #f0d78a;
+.board .chimney-mortar {
+    fill: none;
+    stroke: #f0dcc4;
+    stroke-width: 1;
+    opacity: 0.7;
 }
 
-.board .ball-body {
+.board .chimney-cap {
+    fill: #8f3324;
+    stroke: #5e1a10;
+    stroke-width: 1.2;
+}
+
+.board .chimney-snow {
+    fill: #fff;
+    stroke: #c9bc9b;
+    stroke-width: 0.8;
+}
+
+.board .chimney-smoke {
+    fill: #b9ad90;
+    opacity: 0.55;
+}
+
+/* Santa (the piece that is pushed). */
+.board .santa-hat {
     fill: #d8322a;
     stroke: #8a1c14;
-    stroke-width: 1.5;
+    stroke-width: 1.2;
+    stroke-linejoin: round;
 }
 
-.board .ball-cap {
-    fill: #c8952c;
-    stroke: #7a5a14;
-    stroke-width: 1;
+.board .santa-face {
+    fill: #f4cfaa;
+    stroke: #b9876a;
+    stroke-width: 0.8;
 }
 
-.board .ball-shine {
-    fill: rgba(255, 255, 255, 0.65);
+.board .santa-fur {
+    fill: #fff;
+    stroke: #b9ad90;
+    stroke-width: 0.8;
+}
+
+.board .santa-eye {
+    fill: #2b2420;
+}
+
+.board .santa-nose {
+    fill: #e08a7a;
 }
 
 .board.bump {

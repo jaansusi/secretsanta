@@ -1,5 +1,5 @@
 import { Op } from 'sequelize';
-import { Column, Table, Model, BelongsTo, HasMany, ForeignKey } from 'sequelize-typescript';
+import { Column, DataType, Table, Model, BelongsTo, HasMany, ForeignKey } from 'sequelize-typescript';
 import { EncryptionStrategy } from 'src/encryption/encryption.service';
 import { Family } from 'src/family/entities/family.entity';
 import { Group } from 'src/group/entities/group.entity';
@@ -62,6 +62,14 @@ export class User extends Model {
         defaultValue: false,
     })
     isAdmin: boolean;
+
+    /**
+     * The participant's one codename ("Agent Musimops"), unique within the group: the maze scoreboard shows
+     * it instead of the real name, and their own and their Santa's dossiers show it. Given automatically
+     * when first needed (UserService.agentNames); see agent-names.ts.
+     */
+    @Column({ type: DataType.STRING(60) })
+    agentName: string | null;
 
     @Column
     familyId: number;

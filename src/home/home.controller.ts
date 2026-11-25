@@ -90,8 +90,10 @@ export class HomeController {
       // Names are unique per group only: the recipient is always looked up in the Santa's own group.
       const recipient = await this.userService.getByName(user.groupId, giftingTo);
       const dossier = await this.dossierService.getRevealDossier(recipient);
+      // The player's own name on the maze scoreboard: only they are told which agent is them.
+      const agentName = await this.userService.agentName(user);
       await this.analyticsService.track('reveal', request, { userId: user.id });
-      return { name: user.name, strategy: user.encryptionStrategy, giftingTo, dossier };
+      return { name: user.name, agentName, strategy: user.encryptionStrategy, giftingTo, dossier };
     } catch (err) {
       this.logger.error(`Reveal failed for user ${user.id}: ${err.message}`);
       await this.analyticsService.track('reveal_error', request, { userId: user.id, meta: { message: String(err.message ?? err) } });

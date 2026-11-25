@@ -14,14 +14,16 @@ import { EncryptionService, EncryptionStrategy } from 'src/encryption/encryption
 import { UserService } from 'src/user/user.service';
 import { DrawService } from './draw.service';
 import { readBoolean, readOptionalId, readString } from './api/input';
+import { MAX_AGENT_NAME_LENGTH } from 'src/user/agent-names';
 
-const EDITABLE_FIELDS = ['name', 'email', 'familyId', 'lastYearGiftingToId', 'isAdmin', 'encryptionStrategy', 'interestingFacts'] as const;
+const EDITABLE_FIELDS = ['name', 'email', 'agentName', 'familyId', 'lastYearGiftingToId', 'isAdmin', 'encryptionStrategy', 'interestingFacts'] as const;
 type EditableField = typeof EDITABLE_FIELDS[number];
 type ParticipantInput = Partial<Record<EditableField, any>>;
 
 const FIELD_LABELS: Record<EditableField, string> = {
     name: 'name',
     email: 'email',
+    agentName: 'codename',
     familyId: 'family',
     lastYearGiftingToId: 'last-year recipient',
     isAdmin: 'admin access',
@@ -50,11 +52,12 @@ export class ParticipantsService {
 
     public async list(groupId: number) {
         const users = await this.userRepository.findAll({ where: { groupId }, order: [['name', 'ASC']] });
-        const [families, dossiers, activity, clipCounts] = await Promise.all([
+        const [families, dossiers, activity, clipCounts, agentNames] = await Promise.all([
             this.familyRepository.findAll({ where: { groupId } }),
             this.dossierService.getSummaries(users.map(user => user.id)),
             this.drawService.currentSeasonStart(groupId).then(since => this.analyticsService.participantActivity(groupId, since)),
             this.santaAudioService.nameClipCounts(groupId),
+            this.userService.agentNames(groupId),
         ]);
         const names = new Map(users.map(user => [user.id, user.name]));
         const familyNames = new Map(families.map(family => [family.id, family.name]));
@@ -64,6 +67,7 @@ export class ParticipantsService {
                 id: user.id,
                 name: user.name,
                 email: user.email,
+                agentName: agentNames.get(user.id) ?? '',
                 isAdmin: !!user.isAdmin,
                 encryptionStrategy: user.encryptionStrategy,
                 familyId: user.familyId ?? null,
@@ -73,7 +77,7 @@ export class ParticipantsService {
                 factsCount: countFacts(user.interestingFacts),
                 hasAssignment: !!user.giftingTo,
                 dossier: {
-                    codename: dossier?.codename ?? '',
+                    codename: agentNames.get(user.id) ?? '',
                     hasBrief: !!dossier?.missionBrief,
                     hasPhoto: !!dossier?.hasPhoto,
                     hasAudio: !!dossier?.hasAudio,
@@ -101,6 +105,7 @@ export class ParticipantsService {
             id: user.id,
             name: user.name,
             email: user.email,
+            agentName: await this.userService.agentName(user),
             isAdmin: !!user.isAdmin,
             encryptionStrategy: user.encryptionStrategy,
             familyId: user.familyId ?? null,
@@ -333,6 +338,7 @@ export class ParticipantsService {
         const input: ParticipantInput = {
             name: readString(body, 'name', { required: !existing, max: 100 }),
             email: readString(body, 'email', { max: 200 }),
+            agentName: readString(body, 'agentName', { max: MAX_AGENT_NAME_LENGTH }),
             familyId: readOptionalId(body, 'familyId'),
             lastYearGiftingToId: readOptionalId(body, 'lastYearGiftingToId'),
             isAdmin: readBoolean(body, 'isAdmin'),
@@ -346,6 +352,13 @@ export class ParticipantsService {
         const others = (await this.userRepository.findAll({ where: { groupId } })).filter(user => user.id !== existing?.id);
         if (input.name && others.some(user => user.name.toLowerCase() === input.name.toLowerCase())) {
             throw new BadRequestException(`There is already a participant called ${input.name}`);
+        }
+        // Codenames (agent names) are unique within the group too; an empty one is replaced by a new random name.
+        if (input.agentName !== undefined) {
+            input.agentName = input.agentName || null;
+            if (input.agentName && others.some(user => user.agentName?.toLowerCase() === input.agentName.toLowerCase())) {
+                throw new BadRequestException(`Another participant already has the codename ${input.agentName}`);
+            }
         }
         if (input.email !== undefined) {
             input.email = input.email ? this.userService.cleanGmailAddress(input.email.toLowerCase()) : null;

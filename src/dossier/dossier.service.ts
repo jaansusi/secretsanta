@@ -15,7 +15,6 @@ export class DossierService {
     // Binary columns are never selected for listings, only their presence.
     private static readonly SUMMARY_ATTRIBUTES: any[] = [
         'userId',
-        'codename',
         'missionBrief',
         [literal('photo IS NOT NULL'), 'hasPhoto'],
         [literal('audio IS NOT NULL'), 'hasAudio'],
@@ -38,12 +37,11 @@ export class DossierService {
     ) { }
 
     public async getSummary(userId: number): Promise<DossierSummaryDto> {
-        const row = await this.dossierRepository.findOne({
-            where: { userId },
-            attributes: DossierService.SUMMARY_ATTRIBUTES,
-            raw: true,
-        });
-        return this.toSummary(userId, row);
+        const [row, user] = await Promise.all([
+            this.dossierRepository.findOne({ where: { userId }, attributes: DossierService.SUMMARY_ATTRIBUTES, raw: true }),
+            this.userService.getById(userId),
+        ]);
+        return this.toSummary(userId, row, user ? await this.userService.agentName(user) : '');
     }
 
     /** The dossiers of the given participants (normally everyone in one group). */
@@ -51,14 +49,17 @@ export class DossierService {
         if (!userIds.length) {
             return new Map();
         }
-        const rows = await this.dossierRepository.findAll({
-            where: { userId: userIds },
-            attributes: DossierService.SUMMARY_ATTRIBUTES,
-            raw: true,
-        });
+        const [rows, users] = await Promise.all([
+            this.dossierRepository.findAll({ where: { userId: userIds }, attributes: DossierService.SUMMARY_ATTRIBUTES, raw: true }),
+            this.userService.getByIds(userIds),
+        ]);
+        const codenames = new Map<number, string>();
+        for (const groupId of new Set(users.map(user => user.groupId))) {
+            for (const [userId, name] of await this.userService.agentNames(groupId)) codenames.set(userId, name);
+        }
         const result = new Map<number, DossierSummaryDto>();
         for (const row of rows) {
-            result.set(row.userId, this.toSummary(row.userId, row));
+            result.set(row.userId, this.toSummary(row.userId, row, codenames.get(row.userId) ?? ''));
         }
         return result;
     }
@@ -69,7 +70,6 @@ export class DossierService {
             defaults: { userId },
             attributes: ['id', 'userId'],
         });
-        dossier.codename = (dto.codename ?? '').trim();
         dossier.missionBrief = (dto.missionBrief ?? '').trim();
         await dossier.save();
         return this.getSummary(userId);
@@ -134,6 +134,7 @@ export class DossierService {
             .map(line => line.trim())
             .filter(line => line.length > 0);
         return {
+            // The target's one codename, the same name their Santa sees on the maze scoreboard.
             codename: summary?.codename ?? '',
             missionBrief: summary?.missionBrief ?? '',
             facts,
@@ -149,10 +150,10 @@ export class DossierService {
         return this.santaAudioService.playlist();
     }
 
-    private toSummary(userId: number, row: any): DossierSummaryDto {
+    private toSummary(userId: number, row: any, codename: string): DossierSummaryDto {
         return {
             userId,
-            codename: row?.codename ?? '',
+            codename,
             missionBrief: row?.missionBrief ?? '',
             hasPhoto: !!row?.hasPhoto,
             hasAudio: !!row?.hasAudio,

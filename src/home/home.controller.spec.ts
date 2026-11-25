@@ -1,7 +1,7 @@
 import { HomeController } from './home.controller';
 
 describe('HomeController', () => {
-    const userService = { getByDecryptionCode: jest.fn(), getByName: jest.fn(), getById: jest.fn(), getAllByEmail: jest.fn(async (): Promise<any[]> => []) };
+    const userService = { getByDecryptionCode: jest.fn(), getByName: jest.fn(), getById: jest.fn(), getAllByEmail: jest.fn(async (): Promise<any[]> => []), agentName: jest.fn(async () => 'Agent Test') };
     const encryptionService = { decryptGiftingTo: jest.fn() };
     const dossierService = { getClipPlaylist: async () => ({ intros: [], outros: [] }), getRevealDossier: jest.fn() };
     const analyticsService = { track: jest.fn() };

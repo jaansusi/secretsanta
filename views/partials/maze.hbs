@@ -1,11 +1,11 @@
 {{!-- The maze minigame, shown in place of the dossier on the main page (index.js opens and closes it,
      maze.js runs it). Hidden until opened, so the page's music and buttons stay as they are. --}}
-<section class="maze-page hidden" id="mazeView" aria-label="Agentuuri labürint">
+<section class="maze-page hidden" id="mazeView" aria-label="Agentuuri võimete test">
     <a class="maze-back" href="/"><i class="bi bi-arrow-left"></i> Tagasi toimiku juurde</a>
 
     <header class="paper maze-head">
-      <div class="maze-kicker">Lisaülesanne · Jõululoos {{year}}</div>
-      <h1>Agentuuri labürint</h1>
+      <div class="maze-kicker">Lisaülesanne · {{year}}</div>
+      <h1>Agentuuri võimete test</h1>
       <details class="scoreboard" id="scoreboard">
         <summary>
           <span class="scoreboard-title"><i class="bi bi-trophy"></i> Edetabel</span>
@@ -15,7 +15,7 @@
         <ol class="board-list" id="leaderboard"></ol>
         <p class="muted-note" id="boardEmpty">Keegi pole veel mänginud. Ole esimene!</p>
         <div class="unfinished hidden" id="unfinishedBox">
-          <h3>Veel teel ukseni</h3>
+          <h3>Veel teel korstnani</h3>
           <ul class="board-list" id="unfinishedList"></ul>
         </div>
       </details>
@@ -24,6 +24,7 @@
     <nav class="levels" id="levels" aria-label="Tasemed"></nav>
 
     <section class="paper maze-play" aria-label="Labürint">
+      <h2 class="maze-title">Aita jõuluvana korstnasse</h2>
       <div class="maze-status">
         <span><span id="moveCount">0</span> käiku</span>
       </div>
@@ -31,7 +32,7 @@
         <svg id="board" class="board" role="img" aria-label="Labürint" xmlns="http://www.w3.org/2000/svg"></svg>
         <div class="win hidden" id="win" role="dialog" aria-live="polite">
           <div class="win-card">
-            <div class="win-title">Jõulukera on kohal!</div>
+            <div class="win-title">Jõuluvana on korstnas!</div>
             <div class="win-stars" id="winStars"></div>
             <div id="winText"></div>
             <div class="win-best" id="winBest"></div>

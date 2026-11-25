@@ -122,14 +122,16 @@ export class ParticipantsController {
         const facts = readString(body, 'facts', { max: 5000 });
         const before = await this.dossierService.getSummary(id);
         await this.dossierService.saveText(id, {
-            codename: codename ?? before.codename,
             missionBrief: missionBrief ?? before.missionBrief,
         });
-        if (facts !== undefined && facts !== (user.interestingFacts ?? '')) {
-            await this.participantsService.update(admin, groupId, id, { interestingFacts: facts });
+        // The codename is the participant's agent name: update() checks it is unique and logs the change.
+        const profile: Record<string, string> = {};
+        if (facts !== undefined && facts !== (user.interestingFacts ?? '')) profile.interestingFacts = facts;
+        if (codename !== undefined && codename !== before.codename) profile.agentName = codename;
+        if (Object.keys(profile).length) {
+            await this.participantsService.update(admin, groupId, id, profile);
         }
         const changed = [
-            codename !== undefined && codename !== before.codename ? 'codename' : null,
             missionBrief !== undefined && missionBrief !== before.missionBrief ? 'mission brief' : null,
         ].filter(Boolean);
         if (changed.length) {

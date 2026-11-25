@@ -55,8 +55,8 @@ export async function render(view, { params }) {
         <div class="card-body">
             <div class="form-grid">
                 <div class="field">
-                    <label for="d-codename">Codename</label>
-                    <input type="text" id="d-codename" name="codename" maxlength="100" placeholder="e.g. Operatiiv Piparkook" value="${participant.dossier.codename}">
+                    <label for="d-codename">Codename ${info('Their one codename: shown on the maze scoreboard instead of their name, in their own dossier, and in their Santa\'s dossier. Given automatically ("Agent …"); leave empty for a new random one.', { align: 'left' })}</label>
+                    <input type="text" id="d-codename" name="codename" maxlength="60" placeholder="Given automatically" value="${participant.dossier.codename}">
                 </div>
                 <div class="field full">
                     <label for="d-brief">Mission brief</label>

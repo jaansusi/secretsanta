@@ -147,8 +147,20 @@ function acceptMission() {
 
 function renderDossier(res) {
     const dossier = res.dossier || {};
-    document.getElementById('dossierAgent').textContent = res.name;
-    document.getElementById('recipient').textContent = formatTargetName(res.giftingTo);
+    // "Jaan - koodnimi Oravake" for the player and their target: everyone has one codename, the name
+    // the maze scoreboard shows ("Agent Oravake" there; the dossier already says "Agent").
+    const shortCodename = name => (name || '').replace(/^Agent\s+/i, '');
+    const ownCodename = shortCodename(res.agentName);
+    document.getElementById('dossierAgent').textContent = res.name + (ownCodename ? ' - koodnimi ' + ownCodename : '');
+    const target = document.getElementById('recipient');
+    target.textContent = formatTargetName(res.giftingTo);
+    const targetCodename = shortCodename(dossier.codename);
+    if (targetCodename) {
+        const codename = document.createElement('span');
+        codename.className = 'target-codename';   // smaller than the name
+        codename.textContent = '- koodnimi ' + targetCodename;
+        target.appendChild(codename);
+    }
     const code = (document.getElementById('userCode').value || '').trim();
     document.getElementById('dossierNumber').textContent = dossierNumber(res.giftingTo, code);
 
@@ -158,10 +170,6 @@ function renderDossier(res) {
         photo.alt = res.giftingTo;
         photo.classList.remove('hidden');
         document.getElementById('dossierPhotoPlaceholder').classList.add('hidden');
-    }
-    if (dossier.codename) {
-        document.getElementById('dossierCodename').textContent = dossier.codename;
-        document.getElementById('dossierCodenameRow').classList.remove('hidden');
     }
     if (dossier.missionBrief) {
         document.getElementById('dossierBrief').textContent = dossier.missionBrief;

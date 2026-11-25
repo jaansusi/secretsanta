@@ -9,7 +9,7 @@ export const LEVEL_DEFINITIONS: LevelDefinition[] = [
         // The layout Jaan drew: a 7x7 box in the bottom-left of a 9x9 board, the bauble in the box's
         // bottom-left cell and the door in the top row. Shortest solution: 44 moves.
         id: 1,
-        name: 'Agentuuri labürint',
+        name: 'Agentuuri võimete test',
         world: [9, 9],
         mazeAt: [0, 2],
         ball: [0, 8],

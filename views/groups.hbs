@@ -15,13 +15,13 @@
     <main role="main" class="centerer text-center">
       <div class="briefing">
         <h2 class="briefing-title">Vali grupp</h2>
-        <p class="briefing-greeting">Sa osaled mitmes jõululoosis. Millise grupi missiooni soovid avada?</p>
+        <p class="briefing-greeting">Sa osaled mitmel rindel. Millise missiooni soovid avada?</p>
         <div class="group-choices">
           {{#each choices}}
           <form method="post" action="/grupp">
             <input type="hidden" name="userId" value="{{userId}}">
             <button type="submit" class="button group-choice{{#if current}} current{{/if}}">
-              {{groupName}}<small>{{userName}}{{#if current}} · praegu valitud{{/if}}</small>
+              {{groupName}}
             </button>
           </form>
           {{/each}}

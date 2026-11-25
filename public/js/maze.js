@@ -232,10 +232,14 @@
         for (let x = 1; x < level.world.w; x++) svg('line', { x1: x * C, y1: 0, x2: x * C, y2: H }, grid);
         for (let y = 1; y < level.world.h; y++) svg('line', { x1: 0, y1: y * C, x2: W, y2: y * C }, grid);
 
-        // The door: a fixed target cell.
+        // The chimney: the fixed target cell (drawn in the cell's 40x40 box).
         const door = svg('g', { class: 'door', transform: 'translate(' + level.door.x * C + ' ' + level.door.y * C + ')' }, board);
-        svg('path', { d: 'M10 34 V14 a10 10 0 0 1 20 0 V34 Z', class: 'door-leaf' }, door);
-        svg('circle', { cx: 25, cy: 24, r: 1.8, class: 'door-knob' }, door);
+        svg('circle', { cx: 25, cy: 5, r: 2.6, class: 'chimney-smoke' }, door);
+        svg('circle', { cx: 29.5, cy: 2.5, r: 1.9, class: 'chimney-smoke' }, door);
+        svg('rect', { x: 9, y: 14, width: 22, height: 22, class: 'chimney-brick' }, door);
+        svg('path', { d: 'M9 21 H31 M9 28 H31 M20 14 V21 M14.5 21 V28 M25.5 21 V28 M20 28 V36', class: 'chimney-mortar' }, door);
+        svg('rect', { x: 6, y: 9, width: 28, height: 6, rx: 1, class: 'chimney-cap' }, door);
+        svg('path', { d: 'M6 10.5 Q6 7 10 7.5 Q13 5.5 17 7.5 Q21 5.5 25 7.5 Q29 5.5 32 7.5 Q34.5 7.5 34 10.5 Z', class: 'chimney-snow' }, door);
 
         // The maze: one group that slides as a whole.
         const maze = svg('g', { class: 'maze' }, board);
@@ -249,12 +253,18 @@
             svg('line', { x1: x * C, y1: y * C, x2: (x + 1) * C, y2: y * C, class: 'wall' }, maze);
         });
 
-        // The bauble.
+        // Santa, the piece the agent pushes (centred on its cell; the engine still calls it the ball).
         const ball = svg('g', { class: 'ball' }, board);
-        const inner = svg('g', { class: 'ball-inner' }, ball);
-        svg('rect', { x: -3.5, y: -16.5, width: 7, height: 5, rx: 1, class: 'ball-cap' }, inner);
-        svg('circle', { cx: 0, cy: 0, r: 13, class: 'ball-body' }, inner);
-        svg('ellipse', { cx: -4.5, cy: -5, rx: 3.6, ry: 2.4, class: 'ball-shine' }, inner);
+        const inner = svg('g', { class: 'ball-inner', transform: 'translate(0 2)' }, ball);
+        svg('path', { d: 'M-9.5 -6 C-9 -14 -1 -18 6 -16 C9 -15 11 -13 11.5 -10 L9.5 -6 Z', class: 'santa-hat' }, inner);
+        svg('circle', { cx: 11.5, cy: -10.5, r: 2.8, class: 'santa-fur' }, inner);
+        svg('circle', { cx: 0, cy: -2, r: 7.5, class: 'santa-face' }, inner);
+        svg('rect', { x: -11, y: -8.5, width: 22, height: 4.6, rx: 2.3, class: 'santa-fur' }, inner);
+        svg('path', { d: 'M-9 -3 Q-11.5 9 0 13.5 Q11.5 9 9 -3 Q6.5 3 0 3 Q-6.5 3 -9 -3 Z', class: 'santa-fur' }, inner);
+        svg('path', { d: 'M0 1.2 Q-3.5 -1.2 -6.5 1.8 Q-3 3.8 0 2.4 Q3 3.8 6.5 1.8 Q3.5 -1.2 0 1.2 Z', class: 'santa-fur' }, inner);
+        svg('circle', { cx: -2.8, cy: -3, r: 1, class: 'santa-eye' }, inner);
+        svg('circle', { cx: 2.8, cy: -3, r: 1, class: 'santa-eye' }, inner);
+        svg('circle', { cx: 0, cy: -0.6, r: 1.6, class: 'santa-nose' }, inner);
 
         parts = { maze, ball, board };
         place(false);
@@ -307,12 +317,7 @@
             const item = el('li', row.me ? 'me' : '');
             item.appendChild(el('span', 'rank rank-' + Math.min(row.rank, 4), String(row.rank)));
             const who = el('span', 'who');
-            who.appendChild(document.createTextNode(row.name + (row.me ? ' (sina)' : '')));
-            if (row.first) {
-                const badge = el('span', 'badge-first', 'esimesena läbi');
-                badge.title = 'Läbis esimesena kõik tasemed';
-                who.appendChild(badge);
-            }
+            who.appendChild(document.createTextNode(row.name));
             item.appendChild(who);
             item.appendChild(el('span', 'score', (board.levelCount > 1 ? row.levelsDone + '/' + board.levelCount + ' · ' : '') + moves(row.totalMoves)));
             list.appendChild(item);
@@ -324,7 +329,7 @@
         pending.innerHTML = '';
         board.unfinished.forEach(player => {
             const item = el('li', player.me ? 'me' : '');
-            item.appendChild(el('span', 'who', player.name + (player.me ? ' (sina)' : '')));
+            item.appendChild(el('span', 'who', player.name));
             pending.appendChild(item);
         });
         $('unfinishedBox').classList.toggle('hidden', board.unfinished.length === 0);
@@ -387,7 +392,7 @@
             saveProgress();
             if (record.gameId) scheduleSync();
             shake();
-            setHint(result.blocked === 'edge' ? 'Labürint ei mahu sinna.' : 'Kera ei saa lauast välja lükata.');
+            setHint(result.blocked === 'edge' ? 'Labürint ei mahu sinna.' : 'Jõuluvana ei saa lauast välja lükata.');
             return;
         }
         game.history.push(game.state);

@@ -199,6 +199,15 @@
     overflow-wrap: anywhere;
 }
 
+/* "- koodnimi …" after the target's name: smaller, and not underlined (an inline-block is not). */
+.target-codename {
+    display: inline-block;
+    margin-left: 0.35em;
+    font-size: 0.45em;
+    font-weight: 400;
+    color: #4d4337;
+}
+
 .stamp {
     position: absolute;
     top: 1em;
@@ -468,6 +477,26 @@
 .dossier-bonus:hover {
     color: #fff;
     background: #a3241a;
+}
+
+/* The bonus mission button breathes (colour only, it never moves) so it is noticed. */
+.dossier-bonus {
+    animation: bonus-breathe 2.6s ease-in-out infinite;
+}
+
+.dossier-bonus:hover {
+    animation: none;
+}
+
+@keyframes bonus-breathe {
+    0%, 100% { background-color: #8a1c14; }
+    50% { background-color: #c0392b; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dossier-bonus {
+        animation: none;
+    }
 }
 
 /* ---------- Group chooser (/grupp), for people in several groups ---------- */

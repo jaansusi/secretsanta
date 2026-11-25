@@ -62,7 +62,7 @@ export async function render(view) {
             </div>
         </section>
         <section class="card" id="mazeCard">
-            <div class="card-head"><h2>Maze game ${info('The maze bonus mission at /labyrint: move the maze to push the bauble to the door. Every game is recorded, finished or not; the scoreboard ranks fewest moves. No clock.', { align: 'left' })}</h2>
+            <div class="card-head"><h2>Maze game ${info('The maze bonus mission at /labyrint: move the maze to push Santa into the chimney. Every game is recorded, finished or not; the scoreboard ranks fewest moves. No clock.', { align: 'left' })}</h2>
                 <a class="btn btn-sm btn-ghost" href="/labyrint" target="_blank" rel="noopener">Open<i class="bi bi-box-arrow-up-right"></i></a></div>
             <div class="card-body stack" id="mazeBody"><p class="muted">Loading…</p></div>
         </section>`);
@@ -83,11 +83,11 @@ export async function render(view) {
                 </dl>
                 ${maze.board.rows.length || maze.board.unfinished.length ? html`
                     <div class="table-wrap"><table class="table">
-                        <thead><tr><th class="num">#</th><th>Agent</th><th class="num">Best moves</th><th class="num">Time ${info('Time of the best game, from the first move to the door. Breaks ties between equal moves.')}</th><th>Stars</th><th class="num">Games</th><th class="num">Finished</th></tr></thead>
+                        <thead><tr><th class="num">#</th><th>Agent ${info('Real name, with the agent name participants see on the scoreboard instead', { align: 'left' })}</th><th class="num">Best moves</th><th class="num">Time ${info('Time of the best game, from the first move to the door. Breaks ties between equal moves.')}</th><th>Stars</th><th class="num">Games</th><th class="num">Finished</th></tr></thead>
                         <tbody>
                             ${maze.board.rows.map(row => html`<tr>
                                 <td class="num">${row.rank}</td>
-                                <td class="nowrap">${row.name}${row.first ? html` <span class="badge badge-accent">first</span>` : ''}${row.cheats ? html` <span class="badge badge-warn" title="Finished ${plural(row.cheats, 'game')} with the hidden cheat code (up up down down left right left right = 67 moves)">cheat code</span>` : ''}</td>
+                                <td class="nowrap">${row.name}${row.agentName ? html` <span class="muted">· ${row.agentName}</span>` : ''}${row.first ? html` <span class="badge badge-accent">first</span>` : ''}${row.cheats ? html` <span class="badge badge-warn" title="Finished ${plural(row.cheats, 'game')} with the hidden cheat code (up up down down left right left right = 67 moves)">cheat code</span>` : ''}</td>
                                 <td class="num">${row.totalMoves}</td>
                                 <td class="num">${fmtDuration(row.durationMs)}</td>
                                 <td class="nowrap">${'★'.repeat(row.stars)}${'☆'.repeat(Math.max(0, 3 * maze.board.levelCount - row.stars))}</td>
@@ -96,7 +96,7 @@ export async function render(view) {
                             </tr>`)}
                             ${maze.board.unfinished.map(player => html`<tr>
                                 <td class="num muted">–</td>
-                                <td class="nowrap">${player.name}</td>
+                                <td class="nowrap">${player.name}${player.agentName ? html` <span class="muted">· ${player.agentName}</span>` : ''}</td>
                                 <td class="num muted" title="Moves in their latest unfinished game">${player.latestMoves ?? 0} so far</td>
                                 <td class="num muted">–</td>
                                 <td class="muted">not finished</td>
@@ -285,16 +285,16 @@ function downloadMazeData(format, data) {
     const col = (label, key = label) => ({ label, value: row => row[key] });
     if (format === 'games') {
         downloadCsv(`${base}-games.csv`, [
-            col('gameId', 'id'), col('userId'), col('name'), col('level'), col('status'), col('endReason'), col('cheat'), col('archivedAt'),
+            col('gameId', 'id'), col('userId'), col('name'), col('agentName'), col('level'), col('status'), col('endReason'), col('cheat'), col('archivedAt'),
             col('input'), col('moveCount'), col('actions'), col('undos'), col('par'), col('stars'), col('startedAt'), col('finishedAt'),
             col('durationMs'), col('lastActivityAt'), { label: 'events', value: game => game.events.length },
             { label: 'wallHits', value: game => game.events.filter(e => e.type === 'blocked').length }, col('moves'),
         ], data.games);
         return;
     }
-    const rows = data.games.flatMap(game => game.events.map(event => ({ ...event, gameId: game.id, userId: game.userId, name: game.name, level: game.level })));
+    const rows = data.games.flatMap(game => game.events.map(event => ({ ...event, gameId: game.id, userId: game.userId, name: game.name, agentName: game.agentName, level: game.level })));
     downloadCsv(`${base}-events.csv`, [
-        col('gameId'), col('userId'), col('name'), col('level'), col('seq'), col('type'), col('dir'), col('input'), col('reason'),
+        col('gameId'), col('userId'), col('name'), col('agentName'), col('level'), col('seq'), col('type'), col('dir'), col('input'), col('reason'),
         { label: 'ballX', value: e => e.ball?.[0] }, { label: 'ballY', value: e => e.ball?.[1] },
         { label: 'mazeX', value: e => e.maze?.[0] }, { label: 'mazeY', value: e => e.maze?.[1] }, col('at'),
     ], rows);
