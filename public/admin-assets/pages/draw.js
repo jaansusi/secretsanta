@@ -46,7 +46,7 @@ export async function render(view, { hash }) {
                     </section>
 
                     <section class="card" id="links">
-                        <div class="card-head"><h2>Personal links ${info('Each link opens one person\'s mission. Links change every time the draw is run, and viewing them is logged.', { align: 'left' })}</h2>
+                        <div class="card-head"><h2>Personal links ${info('Each link opens one person\'s mission. Links change every time the draw is run, and viewing them is logged. Add &preview to the end of a link to check whose it is without counting as them opening it.', { align: 'left' })}</h2>
                             ${links ? html`<button class="btn btn-sm" id="copyAll"><i class="bi bi-clipboard"></i>Copy all</button>` : ''}</div>
                         ${status.state === 'not_drawn'
                             ? emptyState('link-45deg', 'No draw yet')
@@ -57,6 +57,7 @@ export async function render(view, { hash }) {
                                         <td><span class="primary-cell">${link.name}</span><div class="sub-cell">${link.email || 'No e-mail'}</div></td>
                                         <td>${link.url ? html`<div class="copy-field"><code title="${link.url}">${link.url}</code></div>` : html`<span class="muted">Not in the draw</span>`}</td>
                                         <td class="right nowrap">${link.url ? html`
+                                            <a class="btn btn-sm" href="${link.url}&amp;preview" target="_blank" rel="noopener noreferrer" title="Shows whose link this is. Does not count as them opening it."><i class="bi bi-box-arrow-up-right"></i>Check</a>
                                             <button class="btn btn-sm" data-copy="${link.id}"><i class="bi bi-clipboard"></i>Copy</button>
                                             ${link.email ? html`<a class="btn btn-sm" href="${mailto(link)}" data-external><i class="bi bi-envelope"></i>E-mail</a>` : ''}` : ''}</td>
                                     </tr>`)}</tbody></table></div>`

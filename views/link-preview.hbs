@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  {{> head pageTitle="Lingi kontroll · SälaSanta"}}
+  <meta name="robots" content="noindex">
+  <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/dossier.css">
+  <link href="/vendor/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
+</head>
+
+<body>
+  {{!-- Opened with "&preview" on a personal link: nothing is recorded and nobody is signed in. --}}
+  <div class="bg">
+    {{> hoverIcons}}
+    <main role="main" class="centerer text-center">
+      <div class="briefing">
+        {{#if invalid}}
+        <h2 class="briefing-title briefing-headline"><i class="bi bi-x-octagon"></i> Link ei kehti</h2>
+        <p class="briefing-greeting">Sellist koodi ei ole. Võib-olla on loos vahepeal uuesti tehtud.</p>
+        {{else}}
+        <div class="briefing-greeting">Lingi kontroll{{#if previewGroup}} · {{previewGroup}}{{/if}}</div>
+        <h2 class="briefing-title briefing-headline"><i class="bi bi-check2-circle"></i> Link töötab</h2>
+        <p>See link avab kasutaja <strong>{{userName}}</strong> missiooni.</p>
+        {{#if agentName}}<p class="briefing-greeting">Koodnimi: {{agentName}}</p>{{/if}}
+        {{#if revealClosed}}
+        <p class="briefing-error">Missioonide avamine on praegu suletud: link töötab, aga missioon veel ei avane.</p>
+        {{/if}}
+        <p class="briefing-greeting">Seda vaadet ei loeta lingi avamiseks. Saatmiseks eemalda lingi lõpust <code>&amp;preview</code>.</p>
+        {{/if}}
+      </div>
+    </main>
+  </div>
+</body>
+
+</html>

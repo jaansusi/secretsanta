@@ -34,6 +34,10 @@ export class HomeController {
     // Rendered into a data-* attribute (escaped by Handlebars) and parsed by index.js: no inline script.
     const santaClips = JSON.stringify(await this.dossierService.getClipPlaylist());
 
+    if (request.query.code !== undefined && request.query.preview !== undefined) {
+      return this.previewLink(request, response);
+    }
+
     if (request.query.code !== undefined) {
       const user = await this.userService.getByDecryptionCode(request.query.code);
       if (!user) {
@@ -69,6 +73,28 @@ export class HomeController {
     }
     await this.analyticsService.track('page_view', request);
     return response.render('index', { encryptionWithCode: true, inputType: 'text', year, santaClips, hideHome: true });
+  }
+
+  /**
+   * A personal link with `&preview` added (`/?code=…&preview`): says whose link it is, so the organiser can
+   * check a link before sending it. Records nothing in analytics and starts no session, so the participant's
+   * "opened" stats stay untouched and the browser is not signed in as them. It shows nothing that opening the
+   * link would not show anyway (never the recipient).
+   */
+  private async previewLink(request: Request, response: Response) {
+    const user = await this.userService.getByDecryptionCode(request.query.code);
+    if (!user) {
+      return response.render('link-preview', { invalid: true });
+    }
+    const settings = this.settingsService.get(user.groupId);
+    return response.render('link-preview', {
+      userName: user.name,
+      agentName: await this.userService.agentName(user),
+      // Not "groupName", which would show the header's group switch.
+      previewGroup: (await this.groupService.get(user.groupId))?.name ?? null,
+      // Worth knowing before sending: the link works, but the mission will not open yet.
+      revealClosed: !settings.revealOpen,
+    });
   }
 
   @Post('result')

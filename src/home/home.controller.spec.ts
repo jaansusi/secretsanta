@@ -42,6 +42,28 @@ describe('HomeController', () => {
         expect(res.render).toHaveBeenCalledWith('index', expect.objectContaining({ error: 'Vigane kood!' }));
     });
 
+    describe('&preview on a personal link', () => {
+        it('names whose link it is without tracking or starting a session', async () => {
+            userService.getByDecryptionCode.mockResolvedValue({ id: 9, groupId: 1, name: 'Mari', decryptionCode: 'c'.repeat(26) });
+            groupService.get.mockResolvedValue({ name: 'Pere' });
+            const res = response();
+            await controller.home(request({ code: 'c'.repeat(26), preview: '' }), res as any);
+            expect(analyticsService.track).not.toHaveBeenCalled();
+            expect(sessionService.start).not.toHaveBeenCalled();
+            expect(res.redirect).not.toHaveBeenCalled();
+            expect(res.render).toHaveBeenCalledWith('link-preview', expect.objectContaining({ userName: 'Mari', previewGroup: 'Pere', revealClosed: false }));
+            expect(encryptionService.decryptGiftingTo).not.toHaveBeenCalled();
+        });
+
+        it('reports an unknown code without recording an invalid link', async () => {
+            userService.getByDecryptionCode.mockResolvedValue(null);
+            const res = response();
+            await controller.home(request({ code: 'x'.repeat(26), preview: '1' }), res as any);
+            expect(analyticsService.track).not.toHaveBeenCalled();
+            expect(res.render).toHaveBeenCalledWith('link-preview', { invalid: true });
+        });
+    });
+
     it('never trusts the legacy unsigned santa_auth cookie', async () => {
         sessionService.getUser.mockResolvedValue(null);
         const res = response();
