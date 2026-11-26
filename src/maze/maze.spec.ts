@@ -1,6 +1,6 @@
 import { MazeEngine, LevelDefinition } from './maze-engine';
 import { LEVELS } from './levels';
-import { rankBoard, BestResult, summarizeGames, GameRow } from './maze-board';
+import { rankBoard, BestResult, summarizeGames, tiedOnMoves, GameRow } from './maze-board';
 import { MAX_EVENTS_PER_SAVE, readEvents, steeringInput } from './maze-events';
 
 // A 3x3 box in a 5x5 world: one wall on the right edge of the middle cell, one on the bottom edge of
@@ -197,5 +197,18 @@ describe('maze event log', () => {
         expect(steeringInput(null, [])).toBeNull();
         // Undo buttons do not say how the bauble was moved.
         expect(steeringInput(null, readEvents([{ seq: 0, type: 'undo', input: 'button', at: now }], now, now))).toBeNull();
+    });
+});
+
+describe('tiedOnMoves', () => {
+    it('picks out the agents whose moves someone else matched', () => {
+        const rows = [
+            { userId: 1, levelsDone: 1, totalMoves: 44 },
+            { userId: 2, levelsDone: 1, totalMoves: 44 },
+            { userId: 3, levelsDone: 1, totalMoves: 50 },
+            { userId: 4, levelsDone: 2, totalMoves: 50 },   // same moves, more levels: not a tie
+        ];
+        expect([...tiedOnMoves(rows)].sort()).toEqual([1, 2]);
+        expect(tiedOnMoves([{ userId: 1, levelsDone: 1, totalMoves: 44 }]).size).toBe(0);
     });
 });

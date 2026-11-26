@@ -60,6 +60,17 @@ export function rankBoard(results: BestResult[], levelCount: number): { rows: Bo
     return { rows, firstFinisherId: first?.userId ?? null };
 }
 
+/**
+ * The agents whose place was decided by time: someone else finished as many levels in as many moves.
+ * Only for them does the participants' scoreboard show the time, to explain the order.
+ */
+export function tiedOnMoves(rows: Pick<BoardRow, 'userId' | 'levelsDone' | 'totalMoves'>[]): Set<number> {
+    const key = (row: Pick<BoardRow, 'levelsDone' | 'totalMoves'>) => row.levelsDone + ':' + row.totalMoves;
+    const counts = new Map<string, number>();
+    for (const row of rows) counts.set(key(row), (counts.get(key(row)) ?? 0) + 1);
+    return new Set(rows.filter(row => counts.get(key(row))! > 1).map(row => row.userId));
+}
+
 /** The fields of a played game (maze_game row) that the scoreboard needs. */
 export interface GameRow {
     userId: number;

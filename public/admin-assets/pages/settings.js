@@ -62,7 +62,7 @@ export async function render(view) {
             </div>
         </section>
         <section class="card" id="mazeCard">
-            <div class="card-head"><h2>Maze game ${info('The maze bonus mission at /labyrint: move the maze to push Santa into the chimney. Every game is recorded, finished or not; the scoreboard ranks fewest moves. No clock.', { align: 'left' })}</h2>
+            <div class="card-head"><h2>Maze game ${info('The maze bonus mission at /labyrint: move the maze to push Santa into the chimney. Every game is recorded, finished or not. The scoreboard ranks fewest moves; with equal moves the faster game (first move to the chimney) ranks higher, and participants see the times only for those tied rows.', { align: 'left' })}</h2>
                 <a class="btn btn-sm btn-ghost" href="/labyrint" target="_blank" rel="noopener">Open<i class="bi bi-box-arrow-up-right"></i></a></div>
             <div class="card-body stack" id="mazeBody"><p class="muted">Loading…</p></div>
         </section>`);

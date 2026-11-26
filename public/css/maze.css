@@ -66,13 +66,6 @@
     letter-spacing: 0.04em;
 }
 
-.muted-note {
-    margin: 0.6rem 0 0;
-    font-size: 0.8rem;
-    color: #6b6052;
-    text-align: center;
-}
-
 /* ---------- Level tabs ---------- */
 .levels {
     display: grid;
@@ -465,6 +458,12 @@
     align-items: flex-end;
     font-size: 0.85rem;
     color: #4d4337;
+}
+
+/* The time under the moves, shown only when moves are tied. */
+.score .tie-time {
+    font-size: 0.75rem;
+    color: #7a6d5a;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -210,6 +210,16 @@
         return n + (n === 1 ? ' käik' : ' käiku');
     }
 
+    /** A game's time as m:ss,t (h:mm:ss,t past an hour), to tenths of a second. */
+    function clock(ms) {
+        const tenths = Math.round(ms / 100);
+        const pad = n => String(n).padStart(2, '0');
+        const h = Math.floor(tenths / 36000);
+        const m = Math.floor(tenths / 600) % 60;
+        const s = Math.floor(tenths / 10) % 60;
+        return (h ? h + ':' + pad(m) : m) + ':' + pad(s) + ',' + (tenths % 10);
+    }
+
 
     function setHint(text) {
         $('hint').textContent = text || '';
@@ -319,10 +329,12 @@
             const who = el('span', 'who');
             who.appendChild(document.createTextNode(row.name));
             item.appendChild(who);
-            item.appendChild(el('span', 'score', (board.levelCount > 1 ? row.levelsDone + '/' + board.levelCount + ' · ' : '') + moves(row.totalMoves)));
+            const score = el('span', 'score', (board.levelCount > 1 ? row.levelsDone + '/' + board.levelCount + ' · ' : '') + moves(row.totalMoves));
+            // The time only where someone has as many moves: there it decided the order.
+            if (row.tieTimeMs != null) score.appendChild(el('span', 'tie-time', clock(row.tieTimeMs)));
+            item.appendChild(score);
             list.appendChild(item);
         });
-        $('boardEmpty').classList.toggle('hidden', board.rows.length > 0 || board.unfinished.length > 0);
 
         // Agents who have played but not reached the door yet.
         const pending = $('unfinishedList');

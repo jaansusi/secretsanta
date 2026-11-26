@@ -8,7 +8,7 @@ import { MazeGameEvent } from './entities/maze-game-event.entity';
 import { MazeEventRow, readEvents, steeringInput } from './maze-events';
 import { MazeEngine } from './maze-engine';
 import { LEVELS, Level, levelById } from './levels';
-import { rankBoard, summarizeGames, GameRow } from './maze-board';
+import { rankBoard, summarizeGames, tiedOnMoves, GameRow } from './maze-board';
 
 /** Longest move string accepted: far beyond any sensible game, small enough to replay instantly. */
 const MAX_MOVES = 2000;
@@ -50,7 +50,11 @@ export interface BoardView {
      * Agents who have finished at least one level, ranked. Participants get rank, agent name and moves
      * only: `name` is the agent name for them, and the real name (with `agentName` beside it) for the admin.
      */
-    rows: ({ rank: number; name: string; agentName?: string; levelsDone: number; totalMoves: number; me: boolean; first: boolean } & Partial<BoardDetails>)[];
+    rows: ({
+        rank: number; name: string; agentName?: string; levelsDone: number; totalMoves: number; me: boolean; first: boolean;
+        /** Time of the best games, only when someone else has as many moves: the time decided the order. */
+        tieTimeMs?: number;
+    } & Partial<BoardDetails>)[];
     /** Agents who have played but not finished anything yet (counts for the admin panel only). */
     unfinished: { name: string; agentName?: string; me: boolean; games?: number; latestMoves?: number | null }[];
 }
@@ -184,6 +188,7 @@ export class MazeService {
             ...(detailed ? { agentName: agentNames.get(userId) ?? '' } : {}),
         });
         const ranks = new Set(ranked.rows.map(row => row.userId));
+        const tied = tiedOnMoves(ranked.rows);
         return {
             levelCount: LEVELS.length,
             rows: ranked.rows.map(row => ({
@@ -193,6 +198,7 @@ export class MazeService {
                 totalMoves: row.totalMoves,
                 me: row.userId === viewerId,
                 first: row.userId === ranked.firstFinisherId,
+                ...(tied.has(row.userId) ? { tieTimeMs: row.totalDurationMs } : {}),
                 ...(detailed ? {
                     cheats: stats.get(row.userId)?.cheats ?? 0,
                     stars: row.stars,
