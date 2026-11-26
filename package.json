@@ -28,7 +28,7 @@
     "@nestjs/passport": "^12",
     "@nestjs/platform-express": "^12",
     "@nestjs/sequelize": "^12",
-    "@nestjs/throttler": "^6.7.1",
+    "@nestjs/throttler": "^6.8.0",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.2",
     "class-transformer": "^0.5.1",
